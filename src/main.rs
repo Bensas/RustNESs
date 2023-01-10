@@ -52,6 +52,31 @@ impl Device for Ram64K {
   }
 }
 
+
+/*
+
+
+File: utils.rs
+
+
+*/
+
+mod bitwise_utils {
+  pub fn get_bit(source: u8, bit_pos: u8) -> u8{ // bit_pos counted from least significant to most significant
+    return source & (1 << bit_pos);
+  }
+
+  pub fn set_bit(target: &mut u8, bit_pos: u8, new_value: u8) {
+    match new_value {
+      0 => *target &= !(1 << bit_pos),
+      1 => *target |= (1 << bit_pos),
+      _ => panic!("Tried to set_bit with a value other than 0 or 1")
+    }
+  }
+}
+
+
+
 /*
 
 
@@ -74,30 +99,96 @@ struct Status {
 impl Status {
 
   fn get_carry(&self) -> u8 {
-    return self.flags & 1;
+    return bitwise_utils::get_bit(self.flags, 0);
   }
 
   fn set_carry(&mut self, value: u8) {
-    if value == 0 {
-      let inverted_value = !value;
-      self.flags &= inverted_value;
-    } else {
-      self.flags |= value;
-    }
+    bitwise_utils::set_bit(&mut self.flags, 0, value);
+  }
+
+  fn get_zero(&self) -> u8 {
+    return bitwise_utils::get_bit(self.flags, 1);
+  }
+
+  fn set_zero(&mut self, value: u8) {
+    bitwise_utils::set_bit(&mut self.flags, 1, value);
+  }
+
+  fn get_irq_disable(&self) -> u8 {
+    return bitwise_utils::get_bit(self.flags, 2);
+  }
+
+  fn set_irq_disable(&mut self, value: u8) {
+    bitwise_utils::set_bit(&mut self.flags, 2, value);
+  }
+
+  fn get_decimal_mode(&self) -> u8 {
+    return bitwise_utils::get_bit(self.flags, 3);
+  }
+
+  fn set_decimal_mode(&mut self, value: u8) {
+    bitwise_utils::set_bit(&mut self.flags, 3, value);
+  }
+
+  fn get_brk_command(&self) -> u8 {
+    return bitwise_utils::get_bit(self.flags, 4);
+  }
+
+  fn set_brk_command(&mut self, value: u8) {
+    bitwise_utils::set_bit(&mut self.flags, 4, value);
+  }
+
+  fn get_overflow(&self) -> u8 {
+    return bitwise_utils::get_bit(self.flags, 6);
+  }
+
+  fn set_overflow(&mut self, value: u8) {
+    bitwise_utils::set_bit(&mut self.flags, 6, value);
+  }
+
+  fn get_negative(&self) -> u8 {
+    return bitwise_utils::get_bit(self.flags, 7);
+  }
+
+  fn set_negative(&mut self, value: u8) {
+    bitwise_utils::set_bit(&mut self.flags, 7, value);
   }
 }
 
-#[test]
-fn test_status_flags() {
-  let status = Status{flags: 0};
-  let carry = status.get_carry();
-  assert_eq!(carry, 0);
+#[cfg(test)]
+mod status_tests {
+    use super::Status;
+
+  #[test]
+  fn test_create_status() {
+    let status = Status{ flags: 0 };
+    assert_eq!(status.flags, 0);
+  }
+
+  #[test]
+  fn test_get_carry() {
+    let status = Status{ flags: 0 };
+    assert_eq!(status.get_carry(), 0);
+  }
+
+  #[test]
+  fn test_set_carry() {
+    let mut status = Status{ flags: 0 };
+
+    status.set_carry(1);
+    assert_eq!(status.get_carry(), 1);
+
+    status.set_carry(0);
+    assert_eq!(status.get_carry(), 0);
+  }
+
 }
+
 
 pub struct Ben6502 {
   bus: Bus,
 
-  status_flags: Status,
+  status: Status,
 
   registers: Registers,
   
@@ -105,7 +196,9 @@ pub struct Ben6502 {
 }
 
 impl Ben6502 {
-
+  fn new(mem_bus: Bus) -> Ben6502 {
+    return Ben6502 { bus: mem_bus, status: Status { flags: 0 }, registers: Registers { a: 0, x: 0, y: 0, sp: 0, pc: 0 } };
+  }
   
 
 }
@@ -158,4 +251,5 @@ impl Bus {
 fn main() {
   println!("Hello, world!");
   let mem_bus = Bus::new();
+  let cpu: Ben6502 = Ben6502::new(mem_bus);
 }
