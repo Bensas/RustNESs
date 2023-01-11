@@ -300,11 +300,9 @@ pub struct Ben6502 {
 
   current_instruction_remaining_cycles: u8,
   needs_additional_cycle: bool,
-  fetched_data: u8,
+  // fetched_data: u8,
   absolute_mem_address: u16,
   relative_mem_address: u8,
-
-  
 
 }
 
@@ -316,7 +314,6 @@ impl Ben6502 {
       registers: Registers { a: 0, x: 0, y: 0, sp: 0, pc: 0 },
       current_instruction_remaining_cycles: 0,
       needs_additional_cycle: false,
-      fetched_data: 0,
       absolute_mem_address: 0,
       relative_mem_address: 0
     };
@@ -325,7 +322,7 @@ impl Ben6502 {
   fn set_addressing_mode(&mut self, mode: &AddressingMode) {
     match mode {
       AddressingMode::ACC => {
-        self.fetched_data = self.registers.a;
+        // The data will be taken directly from the accumulator register, so we don't need an address to fetch the data
       },
       AddressingMode::IMM => {
         self.absolute_mem_address = self.registers.pc;
@@ -433,7 +430,116 @@ impl Ben6502 {
 
   fn execute_instruction(&mut self, instruction: &Instruction) {
 
+    match instruction {
+        Instruction::ADC => todo!(),
+        Instruction::AND => {
+          let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+          self.registers.a = self.registers.a & operand;
+          self.status.set_zero((self.registers.a == 0) as u8);
+          self.status.set_negative((self.registers.a == 0b10000000) as u8);
+        },
+        Instruction::ASL => todo!(),
+        Instruction::BCC => {
+          if (self.status.get_carry() == 0) {
+            self.current_instruction_remaining_cycles += 1;
+            self.absolute_mem_address = self.registers.pc + self.relative_mem_address as u16;
+            if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
+              self.current_instruction_remaining_cycles += 1;
+            }
+            self.registers.pc = self.absolute_mem_address;
+
+          }
+        },
+        Instruction::BCS => {
+          if (self.status.get_carry() == 1) {
+            self.current_instruction_remaining_cycles += 1;
+            self.absolute_mem_address = self.registers.pc + self.relative_mem_address as u16;
+            if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
+              self.current_instruction_remaining_cycles += 1;
+            }
+            self.registers.pc = self.absolute_mem_address;
+
+          }
+        },
+        Instruction::BEQ => {
+          if (self.status.get_zero() == 1) {
+            self.current_instruction_remaining_cycles += 1;
+            self.absolute_mem_address = self.registers.pc + self.relative_mem_address as u16;
+            if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
+              self.current_instruction_remaining_cycles += 1;
+            }
+            self.registers.pc = self.absolute_mem_address;
+
+          }
+        },
+        Instruction::BIT => todo!(),
+        Instruction::BMI => todo!(),
+        Instruction::BNE => {
+          if (self.status.get_zero() == 0) {
+            self.current_instruction_remaining_cycles += 1;
+            self.absolute_mem_address = self.registers.pc + self.relative_mem_address as u16;
+            if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
+              self.current_instruction_remaining_cycles += 1;
+            }
+            self.registers.pc = self.absolute_mem_address;
+
+          }
+        },
+        Instruction::BPL => todo!(),
+        Instruction::BRK => todo!(),
+        Instruction::BVC => todo!(),
+        Instruction::BVS => todo!(),
+        Instruction::CLC => todo!(),
+        Instruction::CLD => todo!(),
+        Instruction::CLI => todo!(),
+        Instruction::CLV => todo!(),
+        Instruction::CMP => todo!(),
+        Instruction::CPX => todo!(),
+        Instruction::CPY => todo!(),
+        Instruction::DEC => todo!(),
+        Instruction::DEX => todo!(),
+        Instruction::DEY => todo!(),
+        Instruction::EOR => todo!(),
+        Instruction::INC => todo!(),
+        Instruction::INX => todo!(),
+        Instruction::INY => todo!(),
+        Instruction::JMP => todo!(),
+        Instruction::JSR => todo!(),
+        Instruction::LDA => todo!(),
+        Instruction::LDX => todo!(),
+        Instruction::LDY => todo!(),
+        Instruction::LSR => todo!(),
+        Instruction::NOP => todo!(),
+        Instruction::ORA => todo!(),
+        Instruction::PHA => todo!(),
+        Instruction::PHP => todo!(),
+        Instruction::PLA => todo!(),
+        Instruction::PLP => todo!(),
+        Instruction::ROL => todo!(),
+        Instruction::ROR => todo!(),
+        Instruction::RTI => todo!(),
+        Instruction::RTS => todo!(),
+        Instruction::SBC => todo!(),
+        Instruction::SEC => todo!(),
+        Instruction::SED => todo!(),
+        Instruction::SEI => todo!(),
+        Instruction::STA => todo!(),
+        Instruction::STX => todo!(),
+        Instruction::STY => todo!(),
+        Instruction::TAX => todo!(),
+        Instruction::TAY => todo!(),
+        Instruction::TSX => todo!(),
+        Instruction::TXA => todo!(),
+        Instruction::TXS => todo!(),
+        Instruction::TYA => todo!(),
+        Instruction::XXX => todo!(),
+    }
+
   }
+
+  // fn fetch_data(&mut self) {
+  //   self.fetched_data = self.bus.read(self.absolute_mem_address, false).unwrap();
+  // }
 
   fn reset() {
 
@@ -456,6 +562,9 @@ impl Ben6502 {
       // self.needs_additional_cycle = false;
       self.set_addressing_mode(&next_instruction_data.addressing_mode);
       self.execute_instruction(&next_instruction_data.instruction);
+
+      todo!("We should check if both the set_addressing_mode as well as the execute_instruction functions required more cycles, rather than\
+            directly increasing the cycle counter inside of those functions. I'm not quite sure how the whole thing works, so I should read up :)");
       // if self.needs_additional_cycle {
       //   self.current_instruction_remaining_cycles += 1;
       // }
