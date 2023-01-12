@@ -677,9 +677,7 @@ impl Ben6502 {
 
     // On reset, the cpu goes to a hard-wired address, takes a pointer
     // from that address (2 bytes), and sets the PC to the address specified
-    let low = self.bus.read(PROGRAM_START_POINTER_ADDR, false).unwrap();
-    let high = self.bus.read(PROGRAM_START_POINTER_ADDR + 1, false).unwrap();
-    self.registers.pc = ((high as u16) << 8) + (low as u16);
+    self.registers.pc = self.bus.read_word_little_endian(PROGRAM_START_POINTER_ADDR, false);
 
     self.absolute_mem_address = 0x0;
     self.relative_mem_address = 0x0;
