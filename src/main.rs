@@ -1,3 +1,5 @@
+use std::panic::UnwindSafe;
+
 /*
 
 
@@ -146,6 +148,14 @@ impl Status {
 
   fn set_brk_command(&mut self, value: u8) {
     bitwise_utils::set_bit(&mut self.flags, 4, value);
+  }
+
+  fn get_unused_bit(&self) -> u8 {
+    return bitwise_utils::get_bit(self.flags, 5);
+  }
+
+  fn set_unused_bit(&mut self, value: u8) {
+    bitwise_utils::set_bit(&mut self.flags, 5, value);
   }
 
   fn get_overflow(&self) -> u8 {
@@ -304,9 +314,12 @@ const STACK_START_ADDR: u16 = 0x100;
 
 const PROGRAM_START_POINTER_ADDR: u16 = 0xFFFC;
 
+const INTERRUPT_START_POINTER_ADDR: u16 = 0xFFFE;
+
+const NMI_START_POINTER_ADDR: u16 = 0xFFFA;
 
 pub struct Ben6502 {
-  bus: Bus,
+  bus: Bus16Bit,
 
   status: Status,
   registers: Registers,
@@ -321,7 +334,7 @@ pub struct Ben6502 {
 }
 
 impl Ben6502 {
-  fn new(mem_bus: Bus) -> Ben6502 {
+  fn new(mem_bus: Bus16Bit) -> Ben6502 {
     return Ben6502 {
       bus: mem_bus,
       status: Status::new(),
@@ -603,7 +616,17 @@ impl Ben6502 {
         },
         Instruction::ROL => todo!(),
         Instruction::ROR => todo!(),
-        Instruction::RTI => todo!(),
+        Instruction::RTI => {
+          self.registers.sp += 1;
+          self.status.flags = self.bus.read(STACK_START_ADDR + self.registers.sp, false).unwrap();
+
+          self.status.set_brk_command(0);
+          self.status.set_unused_bit(0);
+
+          self.registers.sp += 1;
+          self.registers.pc = self.bus.read_word_little_endian(STACK_START_ADDR + self.registers.sp, false).unwrap();
+          self.registers.sp += 1;
+        },
         Instruction::RTS => todo!(),
         Instruction::SBC => {
           let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
@@ -654,7 +677,6 @@ impl Ben6502 {
 
     // On reset, the cpu goes to a hard-wired address, takes a pointer
     // from that address (2 bytes), and sets the PC to the address specified
-    let pointer_addr = PROGRAM_START_POINTER_ADDR;
     let low = self.bus.read(PROGRAM_START_POINTER_ADDR, false).unwrap();
     let high = self.bus.read(PROGRAM_START_POINTER_ADDR + 1, false).unwrap();
     self.registers.pc = ((high as u16) << 8) + (low as u16);
@@ -664,15 +686,53 @@ impl Ben6502 {
     self.current_instruction_remaining_cycles = 8;
   }
 
-  fn irq(&self) {
+  fn irq(&mut self) {
 
-    if (self.status.get_irq_disable()  == 0 ) {
-      
+    if self.status.get_irq_disable() == 1 {
+      return;
     }
+  
+    self.bus.write(self.registers.sp, ((self.registers.pc >> 8) & 0xFF) as u8).unwrap();
+    self.registers.sp -= 1;
+    self.bus.write(self.registers.sp, ( self.registers.pc       & 0xFF) as u8).unwrap();
+    self.registers.sp -= 1;
+
+    self.status.set_brk_command(0);
+    self.status.set_unused_bit(1);
+    self.status.set_irq_disable(1);
+
+    self.bus.write(self.registers.sp, self.status.flags).unwrap();
+    self.registers.sp -= 1;
+
+    // Like on reset, the cpu goes to a hard-wired address, takes a pointer
+    // from that address (2 bytes), and sets the PC to the address specified
+    let low = self.bus.read(INTERRUPT_START_POINTER_ADDR, false).unwrap();
+    let high = self.bus.read(INTERRUPT_START_POINTER_ADDR + 1, false).unwrap();
+    self.registers.pc = ((high as u16) << 8) + (low as u16);
+
+    self.current_instruction_remaining_cycles = 7;
 
   }
 
-  fn nmi(&self) {
+  fn nmi(&mut self) {
+
+    self.bus.write(self.registers.sp, ((self.registers.pc >> 8) & 0xFF) as u8).unwrap();
+    self.registers.sp -= 1;
+    self.bus.write(self.registers.sp, ( self.registers.pc       & 0xFF) as u8).unwrap();
+    self.registers.sp -= 1;
+
+    self.status.set_brk_command(0);
+    self.status.set_unused_bit(1);
+    self.status.set_irq_disable(1);
+
+    self.bus.write(self.registers.sp, self.status.flags).unwrap();
+    self.registers.sp -= 1;
+
+    // Like on reset, the cpu goes to a hard-wired address, takes a pointer
+    // from that address (2 bytes), and sets the PC to the address specified
+    self.registers.pc = self.bus.read_word_little_endian(NMI_START_POINTER_ADDR, false).unwrap();
+
+    self.current_instruction_remaining_cycles = 8;
 
   }
 
@@ -706,16 +766,16 @@ File: bus.rs
 
 
 */
-struct Bus {
+struct Bus16Bit {
   devices: Vec<Box<dyn Device>>
 }
 
 // Assumed to be a 16-bit bus
-impl Bus {
+impl Bus16Bit {
 
-  fn new() -> Bus {
+  fn new() -> Bus16Bit {
     let devices: Vec<Box<dyn Device>> = vec![Box::new(Ram64K{memory: [0; 64*1024], memory_bounds: (0x0000, 0xFFFF)})];
-    return Bus {
+    return Bus16Bit {
       devices
     }
   }
@@ -727,7 +787,18 @@ impl Bus {
       }
     }
     return Err(String::from("Error reading from memory bus (No device found in given address)."))
+  }
 
+  fn read_word_little_endian(&mut self, addr: u16, readOnly: bool) -> Result<u16, String> {
+    let low = self.read(addr, false);
+    let high = self.read(addr + 1, false);
+
+    if (low.is_ok() && high.is_ok()) {
+      let result = ((high.unwrap() as u16) << 8) + (low.unwrap() as u16);
+      return Ok(result);
+    } else {
+      return Err(String::from("Error reading from memory bus (No device found in given address)."))
+    }
   }
 
 	fn write(&mut self, addr: u16, content: u8) -> Result<(), String>{
@@ -745,6 +816,6 @@ impl Bus {
 
 fn main() {
   println!("Hello, world!");
-  let mem_bus = Bus::new();
+  let mem_bus = Bus16Bit::new();
   let cpu: Ben6502 = Ben6502::new(mem_bus);
 }
