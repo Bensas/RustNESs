@@ -88,7 +88,7 @@ struct Registers {
   a: u8,
   x: u8,
   y: u8,
-  sp: u8,
+  sp: u16,
   pc: u16
 }
 
@@ -97,6 +97,16 @@ struct Status {
 }
 
 impl Status {
+
+  fn new() -> Status {
+    return Status{
+      flags: 0b00100000 // One of the bits is unused and is always set to 1 
+    }
+  }
+
+  fn reset(&mut self) {
+    self.flags = 0b00100000;
+  }
 
   fn get_carry(&self) -> u8 {
     return bitwise_utils::get_bit(self.flags, 0);
@@ -290,6 +300,10 @@ const INSTRUCTION_TABLE: [InstructionData; 256] =
 	InstructionData{instruction: Instruction::BEQ, addressing_mode: AddressingMode::REL, cycles: 2 },InstructionData{instruction: Instruction::SBC, addressing_mode: AddressingMode::INY, cycles: 5 },InstructionData{instruction: Instruction::XXX, addressing_mode: AddressingMode::IMP, cycles: 2 },InstructionData{instruction: Instruction::XXX, addressing_mode: AddressingMode::IMP, cycles: 8 },InstructionData{instruction: Instruction::XXX, addressing_mode: AddressingMode::IMP, cycles: 4 },InstructionData{instruction: Instruction::SBC, addressing_mode: AddressingMode::ZPX, cycles: 4 },InstructionData{instruction: Instruction::INC, addressing_mode: AddressingMode::ZPX, cycles: 6 },InstructionData{instruction: Instruction::XXX, addressing_mode: AddressingMode::IMP, cycles: 6 },InstructionData{instruction: Instruction::SED, addressing_mode: AddressingMode::IMP, cycles: 2 },InstructionData{instruction: Instruction::SBC, addressing_mode: AddressingMode::ABY, cycles: 4 },InstructionData{instruction: Instruction::NOP, addressing_mode: AddressingMode::IMP, cycles: 2 },InstructionData{instruction: Instruction::XXX, addressing_mode: AddressingMode::IMP, cycles: 7 },InstructionData{instruction: Instruction::XXX, addressing_mode: AddressingMode::IMP, cycles: 4 },InstructionData{instruction: Instruction::SBC, addressing_mode: AddressingMode::ABX, cycles: 4 },InstructionData{instruction: Instruction::INC, addressing_mode: AddressingMode::ABX, cycles: 7 },InstructionData{instruction: Instruction::XXX, addressing_mode: AddressingMode::IMP, cycles: 7 },
 ];
 
+const STACK_START_ADDR: u16 = 0x100;
+
+const PROGRAM_START_POINTER_ADDR: u16 = 0xFFFC;
+
 
 pub struct Ben6502 {
   bus: Bus,
@@ -310,7 +324,7 @@ impl Ben6502 {
   fn new(mem_bus: Bus) -> Ben6502 {
     return Ben6502 {
       bus: mem_bus,
-      status: Status { flags: 0 },
+      status: Status::new(),
       registers: Registers { a: 0, x: 0, y: 0, sp: 0, pc: 0 },
       current_instruction_remaining_cycles: 0,
       needs_additional_cycle: false,
@@ -431,7 +445,17 @@ impl Ben6502 {
   fn execute_instruction(&mut self, instruction: &Instruction) {
 
     match instruction {
-        Instruction::ADC => todo!(),
+        Instruction::ADC => {
+          let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+          let result = self.registers.a as u16 + operand as u16 + self.status.get_carry() as u16;
+          self.status.set_carry( (result > 0x00FF) as u8);
+          self.status.set_zero( (result & 0xFF == 0) as u8);
+          self.status.set_negative( (result & 0b10000000 != 0) as u8);
+          // A beautiful explanation for the following line can be found at https://youtu.be/8XmxKPJDGU0?t=2540
+          self.status.set_overflow((((!(self.registers.a as u16 ^ operand as u16) & (self.registers.a as u16 ^ result as u16)) & 0b10000000) != 0) as u8); 
+          self.registers.a = (result & 0x00FF) as u8;
+          todo!("Might require an additional clock cycle :S");
+        },
         Instruction::AND => {
           let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
           self.registers.a = self.registers.a & operand;
@@ -473,7 +497,17 @@ impl Ben6502 {
           }
         },
         Instruction::BIT => todo!(),
-        Instruction::BMI => todo!(),
+        Instruction::BMI => {
+          if (self.status.get_negative() == 1) {
+            self.current_instruction_remaining_cycles += 1;
+            self.absolute_mem_address = self.registers.pc + self.relative_mem_address as u16;
+            if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
+              self.current_instruction_remaining_cycles += 1;
+            }
+            self.registers.pc = self.absolute_mem_address;
+
+          }
+        },
         Instruction::BNE => {
           if (self.status.get_zero() == 0) {
             self.current_instruction_remaining_cycles += 1;
@@ -485,14 +519,52 @@ impl Ben6502 {
 
           }
         },
-        Instruction::BPL => todo!(),
-        Instruction::BRK => todo!(),
-        Instruction::BVC => todo!(),
-        Instruction::BVS => todo!(),
-        Instruction::CLC => todo!(),
-        Instruction::CLD => todo!(),
-        Instruction::CLI => todo!(),
-        Instruction::CLV => todo!(),
+        Instruction::BPL => {
+          if (self.status.get_negative() == 0) {
+            self.current_instruction_remaining_cycles += 1;
+            self.absolute_mem_address = self.registers.pc + self.relative_mem_address as u16;
+            if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
+              self.current_instruction_remaining_cycles += 1;
+            }
+            self.registers.pc = self.absolute_mem_address;
+
+          }
+        },
+        Instruction::BRK => {
+          
+        },
+        Instruction::BVC => {
+          if (self.status.get_overflow() == 0) {
+            self.current_instruction_remaining_cycles += 1;
+            self.absolute_mem_address = self.registers.pc + self.relative_mem_address as u16;
+            if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
+              self.current_instruction_remaining_cycles += 1;
+            }
+            self.registers.pc = self.absolute_mem_address;
+          }
+        },
+        Instruction::BVS => {
+          if (self.status.get_overflow() == 1) {
+            self.current_instruction_remaining_cycles += 1;
+            self.absolute_mem_address = self.registers.pc + self.relative_mem_address as u16;
+            if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
+              self.current_instruction_remaining_cycles += 1;
+            }
+            self.registers.pc = self.absolute_mem_address;
+          }
+        },
+        Instruction::CLC => {
+          self.status.set_carry(0);
+        },
+        Instruction::CLD => {
+          self.status.set_decimal_mode(0);
+        },
+        Instruction::CLI => {
+          self.status.set_irq_disable(0);
+        },
+        Instruction::CLV => {
+          self.status.set_overflow(0);
+        },
         Instruction::CMP => todo!(),
         Instruction::CPX => todo!(),
         Instruction::CPY => todo!(),
@@ -511,15 +583,44 @@ impl Ben6502 {
         Instruction::LSR => todo!(),
         Instruction::NOP => todo!(),
         Instruction::ORA => todo!(),
-        Instruction::PHA => todo!(),
-        Instruction::PHP => todo!(),
-        Instruction::PLA => todo!(),
-        Instruction::PLP => todo!(),
+        Instruction::PHA => {
+          self.bus.write(STACK_START_ADDR + self.registers.sp, self.registers.a).unwrap();
+          self.registers.sp -= 1;
+        },
+        Instruction::PHP => {
+          self.bus.write(STACK_START_ADDR + self.registers.sp, self.status.flags).unwrap();
+          self.registers.sp -= 1;
+        },
+        Instruction::PLA => {
+          self.registers.sp += 1;
+          self.registers.a = self.bus.read(STACK_START_ADDR + self.registers.sp, false).unwrap();
+          self.status.set_zero((self.registers.a == 0) as u8);
+          self.status.set_negative((self.registers.a & 0b10000000 != 0) as u8);
+        },
+        Instruction::PLP => {
+          self.status.flags = self.bus.read(0x100 + self.registers.sp, false).unwrap();
+          self.registers.sp += 1;
+        },
         Instruction::ROL => todo!(),
         Instruction::ROR => todo!(),
         Instruction::RTI => todo!(),
         Instruction::RTS => todo!(),
-        Instruction::SBC => todo!(),
+        Instruction::SBC => {
+          let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+
+          let inverted_value = operand as u16 ^ 0xFF;
+
+          let result = self.registers.a as u16 + inverted_value as u16 + self.status.get_carry() as u16;
+          
+          self.status.set_carry( (result & 0xFF00 != 0) as u8);
+          self.status.set_zero( (result & 0xFF == 0) as u8);
+          self.status.set_negative( (result & 0b10000000 != 0) as u8);
+          // A beautiful explanation for the following line can be found at https://youtu.be/8XmxKPJDGU0?t=2540
+          self.status.set_overflow(( ((self.registers.a as u16 ^ result as u16) & (inverted_value as u16 ^ result as u16) & 0b10000000) != 0) as u8); 
+          
+          self.registers.a = (result & 0x00FF) as u8;
+          todo!("Might require an additional clock cycle :S");
+        },
         Instruction::SEC => todo!(),
         Instruction::SED => todo!(),
         Instruction::SEI => todo!(),
@@ -541,15 +642,37 @@ impl Ben6502 {
   //   self.fetched_data = self.bus.read(self.absolute_mem_address, false).unwrap();
   // }
 
-  fn reset() {
+  fn reset(&mut self) {
+
+    self.registers.a = 0;
+    self.registers.x = 0;
+    self.registers.y = 0;
+
+    self.registers.sp = 0xFD;
+    
+    self.status.reset();
+
+    // On reset, the cpu goes to a hard-wired address, takes a pointer
+    // from that address (2 bytes), and sets the PC to the address specified
+    let pointer_addr = PROGRAM_START_POINTER_ADDR;
+    let low = self.bus.read(PROGRAM_START_POINTER_ADDR, false).unwrap();
+    let high = self.bus.read(PROGRAM_START_POINTER_ADDR + 1, false).unwrap();
+    self.registers.pc = ((high as u16) << 8) + (low as u16);
+
+    self.absolute_mem_address = 0x0;
+    self.relative_mem_address = 0x0;
+    self.current_instruction_remaining_cycles = 8;
+  }
+
+  fn irq(&self) {
+
+    if (self.status.get_irq_disable()  == 0 ) {
+      
+    }
 
   }
 
-  fn irq() {
-
-  }
-
-  fn nmi() {
+  fn nmi(&self) {
 
   }
 
