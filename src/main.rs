@@ -455,7 +455,7 @@ impl Ben6502 {
   }
 
 
-  fn execute_instruction(&mut self, instruction: &Instruction) {
+  fn execute_instruction(&mut self, instruction: &Instruction, addr_mode: &AddressingMode) {
 
     match instruction {
         Instruction::ADC => {
@@ -475,7 +475,24 @@ impl Ben6502 {
           self.status.set_zero((self.registers.a == 0) as u8);
           self.status.set_negative((self.registers.a == 0b10000000) as u8);
         },
-        Instruction::ASL => todo!(),
+        Instruction::ASL => {
+          let operand;
+
+          if matches!(addr_mode, AddressingMode::IMP) {
+            operand = self.registers.a;
+          } else {
+            operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+          }
+          let result: u16 = (operand as u16) << 1;
+          self.status.set_carry((result & 0xFF00 != 0) as u8);
+          self.status.set_zero((result == 0) as u8);
+          self.status.set_negative(((result & 0b10000000) != 0) as u8);
+          if matches!(addr_mode, AddressingMode::IMP) {
+            self.registers.a = (result & 0xFF) as u8;
+          } else {
+            self.bus.write(self.absolute_mem_address, (result & 0xFF) as u8).unwrap();
+          }
+        },
         Instruction::BCC => {
           if (self.status.get_carry() == 0) {
             self.current_instruction_remaining_cycles += 1;
@@ -509,7 +526,14 @@ impl Ben6502 {
 
           }
         },
-        Instruction::BIT => todo!(),
+        Instruction::BIT => {
+          let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+          let result = self.registers.a & operand;
+
+          self.status.set_zero((result == 0) as u8);
+          self.status.set_negative(((operand & 0b10000000) != 0) as u8);
+          self.status.set_overflow(((operand & 0b01000000) != 0) as u8);
+        },
         Instruction::BMI => {
           if (self.status.get_negative() == 1) {
             self.current_instruction_remaining_cycles += 1;
@@ -544,6 +568,7 @@ impl Ben6502 {
           }
         },
         Instruction::BRK => {
+          // Force break (?)
           
         },
         Instruction::BVC => {
@@ -677,7 +702,7 @@ impl Ben6502 {
 
     // On reset, the cpu goes to a hard-wired address, takes a pointer
     // from that address (2 bytes), and sets the PC to the address specified
-    self.registers.pc = self.bus.read_word_little_endian(PROGRAM_START_POINTER_ADDR, false);
+    self.registers.pc = self.bus.read_word_little_endian(PROGRAM_START_POINTER_ADDR, false).unwrap();
 
     self.absolute_mem_address = 0x0;
     self.relative_mem_address = 0x0;
