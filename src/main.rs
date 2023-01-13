@@ -568,7 +568,23 @@ impl Ben6502 {
           }
         },
         Instruction::BRK => {
-          // Force break (?)
+          self.registers.pc += 1;
+
+          self.status.set_irq_disable(1);
+
+          self.bus.write(STACK_START_ADDR + self.registers.sp, ((self.registers.pc >> 8) & 0xFF) as u8).unwrap();
+          self.registers.sp -= 1;
+          self.bus.write(STACK_START_ADDR + self.registers.sp, ( self.registers.pc       & 0xFF) as u8).unwrap();
+          self.registers.sp -= 1;
+
+          self.status.set_brk_command(1);
+
+          self.bus.write(STACK_START_ADDR + self.registers.sp, self.status.flags).unwrap();
+          self.registers.sp -= 1;
+
+          self.status.set_brk_command(0);
+
+          self.registers.pc = self.bus.read_word_little_endian(INTERRUPT_START_POINTER_ADDR, false).unwrap();
           
         },
         Instruction::BVC => {
@@ -636,7 +652,7 @@ impl Ben6502 {
           self.status.set_negative((self.registers.a & 0b10000000 != 0) as u8);
         },
         Instruction::PLP => {
-          self.status.flags = self.bus.read(0x100 + self.registers.sp, false).unwrap();
+          self.status.flags = self.bus.read(STACK_START_ADDR + self.registers.sp, false).unwrap();
           self.registers.sp += 1;
         },
         Instruction::ROL => todo!(),
@@ -715,23 +731,21 @@ impl Ben6502 {
       return;
     }
   
-    self.bus.write(self.registers.sp, ((self.registers.pc >> 8) & 0xFF) as u8).unwrap();
+    self.bus.write(STACK_START_ADDR + self.registers.sp, ((self.registers.pc >> 8) & 0xFF) as u8).unwrap();
     self.registers.sp -= 1;
-    self.bus.write(self.registers.sp, ( self.registers.pc       & 0xFF) as u8).unwrap();
+    self.bus.write(STACK_START_ADDR + self.registers.sp, ( self.registers.pc       & 0xFF) as u8).unwrap();
     self.registers.sp -= 1;
 
     self.status.set_brk_command(0);
     self.status.set_unused_bit(1);
     self.status.set_irq_disable(1);
 
-    self.bus.write(self.registers.sp, self.status.flags).unwrap();
+    self.bus.write(STACK_START_ADDR + self.registers.sp, self.status.flags).unwrap();
     self.registers.sp -= 1;
 
     // Like on reset, the cpu goes to a hard-wired address, takes a pointer
     // from that address (2 bytes), and sets the PC to the address specified
-    let low = self.bus.read(INTERRUPT_START_POINTER_ADDR, false).unwrap();
-    let high = self.bus.read(INTERRUPT_START_POINTER_ADDR + 1, false).unwrap();
-    self.registers.pc = ((high as u16) << 8) + (low as u16);
+    self.registers.pc = self.bus.read_word_little_endian(INTERRUPT_START_POINTER_ADDR, false).unwrap();
 
     self.current_instruction_remaining_cycles = 7;
 
@@ -739,16 +753,16 @@ impl Ben6502 {
 
   fn nmi(&mut self) {
 
-    self.bus.write(self.registers.sp, ((self.registers.pc >> 8) & 0xFF) as u8).unwrap();
+    self.bus.write(STACK_START_ADDR + self.registers.sp, ((self.registers.pc >> 8) & 0xFF) as u8).unwrap();
     self.registers.sp -= 1;
-    self.bus.write(self.registers.sp, ( self.registers.pc       & 0xFF) as u8).unwrap();
+    self.bus.write(STACK_START_ADDR + self.registers.sp, ( self.registers.pc       & 0xFF) as u8).unwrap();
     self.registers.sp -= 1;
 
     self.status.set_brk_command(0);
     self.status.set_unused_bit(1);
     self.status.set_irq_disable(1);
 
-    self.bus.write(self.registers.sp, self.status.flags).unwrap();
+    self.bus.write(STACK_START_ADDR + self.registers.sp, self.status.flags).unwrap();
     self.registers.sp -= 1;
 
     // Like on reset, the cpu goes to a hard-wired address, takes a pointer
