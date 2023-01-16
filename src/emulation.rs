@@ -241,6 +241,7 @@ mod status_tests {
 }
 
 
+#[derive(Debug)]
 enum AddressingMode {
   ACC, // Accum
   IMM, // Immediate
@@ -396,11 +397,8 @@ impl Ben6502 {
         self.registers.pc += 1;
       },
       AddressingMode::ABS => {
-        let addr_low= self.bus.read(self.registers.pc, false).unwrap();
-        self.registers.pc += 1;
-        let addr_high = self.bus.read(self.registers.pc, false).unwrap();
-        self.registers.pc += 1;
-        self.absolute_mem_address = (addr_high as u16) << 8 + (addr_low as u16);
+        self.absolute_mem_address = self.bus.read_word_little_endian(self.registers.pc, false).unwrap();
+        self.registers.pc += 2;
       },
       AddressingMode::ZP0 => {
         let addr_low = self.bus.read(self.registers.pc, false).unwrap();
@@ -419,24 +417,21 @@ impl Ben6502 {
         self.absolute_mem_address = (instruction_addr as u16 + self.registers.y as u16) & 0x00FF;
       },
       AddressingMode::ABX => {
-        let addr_low = self.bus.read(self.registers.pc, false).unwrap();
-        self.registers.pc += 1;
-        let addr_high = self.bus.read(self.registers.pc, false).unwrap();
-        self.registers.pc += 1;
-        self.absolute_mem_address = ((addr_high as u16) << 8 + (addr_low as u16)) + self.registers.x as u16;
+        let mem_addr = self.bus.read_word_little_endian(self.registers.pc, false).unwrap();
+        self.registers.pc += 2;
 
-        if (self.absolute_mem_address > (addr_high as u16) << 8) { // We crossed a page boundary after adding X to the address
+        self.absolute_mem_address = mem_addr + self.registers.x as u16;
+
+        if (self.absolute_mem_address > (mem_addr & 0xFF00)) { // We crossed a page boundary after adding X to the address
           self.current_instruction_remaining_cycles += 1;
         }
       },
       AddressingMode::ABY => {
-        let addr_low = self.bus.read(self.registers.pc, false).unwrap();
-        self.registers.pc += 1;
-        let addr_high = self.bus.read(self.registers.pc, false).unwrap();
-        self.registers.pc += 1;
-        self.absolute_mem_address = ((addr_high as u16) << 8 + (addr_low as u16)) + self.registers.y as u16;
+        let mem_addr = self.bus.read_word_little_endian(self.registers.pc, false).unwrap();
+        self.registers.pc += 2;
+        self.absolute_mem_address = mem_addr + self.registers.y as u16;
 
-        if (self.absolute_mem_address > (addr_high as u16) << 8) { // We crossed a page boundary after adding X to the address
+        if (self.absolute_mem_address > (mem_addr & 0xFF00)) { // We crossed a page boundary after adding X to the address
           self.current_instruction_remaining_cycles += 1;
         }
       },
@@ -451,43 +446,32 @@ impl Ben6502 {
         let instruction_addr = self.bus.read(self.registers.pc, false).unwrap();
         self.registers.pc += 1;
 
-        let abs_address_of_low_byte = (instruction_addr as u16 + self.registers.x as u16) & 0x00FF;
+        let pointer_to_addr = (instruction_addr as u16 + self.registers.x as u16) & 0x00FF;
 
-        let low_byte = self.bus.read(abs_address_of_low_byte, false).unwrap();
-        let high_byte = self.bus.read(abs_address_of_low_byte + 1, false).unwrap();
-
-        self.absolute_mem_address = (high_byte as u16) << 8 + (low_byte as u16);
-        
+        self.absolute_mem_address = self.bus.read_word_little_endian(pointer_to_addr, false).unwrap();        
       }
       AddressingMode::INY => {
         let instruction_addr = self.bus.read(self.registers.pc, false).unwrap();
         self.registers.pc += 1;
 
-        let abs_address_of_low_byte = (instruction_addr as u16 + self.registers.y as u16) & 0x00FF;
+        let pointer_to_addr = (instruction_addr as u16 + self.registers.y as u16) & 0x00FF;
 
-        let low_byte = self.bus.read(abs_address_of_low_byte, false).unwrap();
-        let high_byte = self.bus.read(abs_address_of_low_byte + 1, false).unwrap();
-
-        self.absolute_mem_address = (high_byte as u16) << 8 + (low_byte as u16);
+        self.absolute_mem_address = self.bus.read_word_little_endian(pointer_to_addr, false).unwrap();        
       },
       AddressingMode::IND => {
-        let addr_low = self.bus.read(self.registers.pc, false).unwrap();
-        self.registers.pc += 1;
-        let addr_high = self.bus.read(self.registers.pc, false).unwrap();
-        self.registers.pc += 1;
-
-        let abs_address_of_low_byte = (addr_high as u16) << 8 + (addr_low as u16);;
+        let abs_address_of_low_byte = self.bus.read_word_little_endian(self.registers.pc, false).unwrap();
+        self.registers.pc += 2;
         
         let low_byte = self.bus.read(abs_address_of_low_byte, false).unwrap();
         let high_byte: u8;
 
-        if (addr_low == 0x00FF) { // We must do this weird thing to simulate a hardware bug in the CPU with page boundaries. https://www.nesdev.org/6502bugs.txt
+        if ((abs_address_of_low_byte & 0xFF) == 0x00FF) { // We must do this weird thing to simulate a hardware bug in the CPU with page boundaries. https://www.nesdev.org/6502bugs.txt
           high_byte = self.bus.read(abs_address_of_low_byte & 0xFF00, false).unwrap();
         } else {
           high_byte = self.bus.read(abs_address_of_low_byte + 1, false).unwrap();
         }
 
-        self.absolute_mem_address = (high_byte as u16) << 8 + (low_byte as u16);
+        self.absolute_mem_address = ((high_byte as u16) << 8) + (low_byte as u16);
       },
       _ => return
       
@@ -507,7 +491,7 @@ impl Ben6502 {
           // A beautiful explanation for the following line can be found at https://youtu.be/8XmxKPJDGU0?t=2540
           self.status.set_overflow((((!(self.registers.a as u16 ^ operand as u16) & (self.registers.a as u16 ^ result as u16)) & 0b10000000) != 0) as u8); 
           self.registers.a = (result & 0x00FF) as u8;
-          todo!("Might require an additional clock cycle :S");
+          // todo!("Might require an additional clock cycle :S");
         },
         Instruction::AND => {
           let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
