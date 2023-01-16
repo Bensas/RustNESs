@@ -90,7 +90,7 @@ struct Registers {
   a: u8,
   x: u8,
   y: u8,
-  sp: u16,
+  sp: u8,
   pc: u16
 }
 
@@ -485,7 +485,7 @@ impl Ben6502 {
           }
           let result: u16 = (operand as u16) << 1;
           self.status.set_carry((result & 0xFF00 != 0) as u8);
-          self.status.set_zero((result == 0) as u8);
+          self.status.set_zero((result & 0xFF == 0) as u8);
           self.status.set_negative(((result & 0b10000000) != 0) as u8);
           if matches!(addr_mode, AddressingMode::IMP) {
             self.registers.a = (result & 0xFF) as u8;
@@ -530,7 +530,7 @@ impl Ben6502 {
           let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
           let result = self.registers.a & operand;
 
-          self.status.set_zero((result == 0) as u8);
+          self.status.set_zero(( (result & 0xFF) == 0) as u8);
           self.status.set_negative(((operand & 0b10000000) != 0) as u8);
           self.status.set_overflow(((operand & 0b01000000) != 0) as u8);
         },
@@ -572,14 +572,14 @@ impl Ben6502 {
 
           self.status.set_irq_disable(1);
 
-          self.bus.write(STACK_START_ADDR + self.registers.sp, ((self.registers.pc >> 8) & 0xFF) as u8).unwrap();
+          self.bus.write(STACK_START_ADDR + self.registers.sp as u16, ((self.registers.pc >> 8) & 0xFF) as u8).unwrap();
           self.registers.sp -= 1;
-          self.bus.write(STACK_START_ADDR + self.registers.sp, ( self.registers.pc       & 0xFF) as u8).unwrap();
+          self.bus.write(STACK_START_ADDR + self.registers.sp as u16, ( self.registers.pc       & 0xFF) as u8).unwrap();
           self.registers.sp -= 1;
 
           self.status.set_brk_command(1);
 
-          self.bus.write(STACK_START_ADDR + self.registers.sp, self.status.flags).unwrap();
+          self.bus.write(STACK_START_ADDR + self.registers.sp as u16, self.status.flags).unwrap();
           self.registers.sp -= 1;
 
           self.status.set_brk_command(0);
@@ -619,56 +619,225 @@ impl Ben6502 {
         Instruction::CLV => {
           self.status.set_overflow(0);
         },
-        Instruction::CMP => todo!(),
-        Instruction::CPX => todo!(),
-        Instruction::CPY => todo!(),
-        Instruction::DEC => todo!(),
-        Instruction::DEX => todo!(),
-        Instruction::DEY => todo!(),
-        Instruction::EOR => todo!(),
-        Instruction::INC => todo!(),
-        Instruction::INX => todo!(),
-        Instruction::INY => todo!(),
-        Instruction::JMP => todo!(),
-        Instruction::JSR => todo!(),
-        Instruction::LDA => todo!(),
-        Instruction::LDX => todo!(),
-        Instruction::LDY => todo!(),
-        Instruction::LSR => todo!(),
-        Instruction::NOP => todo!(),
-        Instruction::ORA => todo!(),
+        Instruction::CMP => {
+          let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+          let result = self.registers.a as u16 - operand as u16;
+          self.status.set_carry((self.registers.a >= operand) as u8);
+          self.status.set_zero(( (result & 0x00FF) == 0x0000 ) as u8);
+          self.status.set_negative((result & 0b10000000 != 0) as u8);
+        },
+        Instruction::CPX => {
+          let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+          let result = self.registers.x as u16 - operand as u16;
+          self.status.set_carry((self.registers.x >= operand) as u8);
+          self.status.set_zero(( (result & 0x00FF) == 0x0000 ) as u8);
+          self.status.set_negative((result & 0b10000000 != 0) as u8);
+        },
+        Instruction::CPY => {
+          let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+          let result = self.registers.y as u16 - operand as u16;
+          self.status.set_carry((self.registers.y >= operand) as u8);
+          self.status.set_zero(( (result & 0x00FF) == 0x0000 ) as u8);
+          self.status.set_negative((result & 0b10000000 != 0) as u8);
+        },
+        Instruction::DEC => {
+          let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+          let result = operand - 1;
+          self.bus.write(self.absolute_mem_address, result);
+
+          self.status.set_zero(( (result & 0x00FF) == 0x0000 ) as u8);
+          self.status.set_negative((result & 0b10000000 != 0) as u8);
+        },
+        Instruction::DEX => {
+          self.registers.x -= 1;
+
+          self.status.set_zero(( (self.registers.x & 0x00FF) == 0x0000 ) as u8);
+          self.status.set_negative((self.registers.x & 0b10000000 != 0) as u8);
+        },
+        Instruction::DEY => {
+          self.registers.y -= 1;
+
+          self.status.set_zero(( (self.registers.y & 0x00FF) == 0x0000 ) as u8);
+          self.status.set_negative((self.registers.y & 0b10000000 != 0) as u8);
+        },
+        Instruction::EOR => {
+          let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+          self.registers.a ^= operand;
+          self.status.set_zero(( (self.registers.a & 0x00FF) == 0x0000 ) as u8);
+          self.status.set_negative((self.registers.a & 0b10000000 != 0) as u8);
+        },
+        Instruction::INC => {
+          let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+          let result = operand + 1;
+          self.bus.write(self.absolute_mem_address, result);
+
+          self.status.set_zero(( (result & 0x00FF) == 0x0000 ) as u8);
+          self.status.set_negative((result & 0b10000000 != 0) as u8);
+        },
+        Instruction::INX => {
+          self.registers.x += 1;
+
+          self.status.set_zero(( (self.registers.x & 0x00FF) == 0x0000 ) as u8);
+          self.status.set_negative((self.registers.x & 0b10000000 != 0) as u8);
+        },
+        Instruction::INY => {
+          self.registers.y += 1;
+
+          self.status.set_zero(( (self.registers.y & 0x00FF) == 0x0000 ) as u8);
+          self.status.set_negative((self.registers.y & 0b10000000 != 0) as u8);
+        },
+        Instruction::JMP => {
+          self.registers.pc = self.absolute_mem_address;
+        },
+        Instruction::JSR => {
+          self.registers.pc -= 1; // Not sure why we must decrease the PC before storing it in memory
+
+          self.bus.write(STACK_START_ADDR + self.registers.sp as u16, (self.registers.pc >> 8) as u8);
+          self.registers.sp -= 1;
+          self.bus.write(STACK_START_ADDR + self.registers.sp as u16, (self.registers.pc & 0xFF) as u8);
+          self.registers.sp -= 1;
+
+          self.registers.pc = self.absolute_mem_address;
+
+        },
+        Instruction::LDA => {
+          let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+          self.registers.a = operand;
+
+          self.status.set_zero(( (self.registers.a & 0x00FF) == 0x0000 ) as u8);
+          self.status.set_negative((self.registers.a & 0b10000000 != 0) as u8);
+        },
+        Instruction::LDX => {
+          let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+          self.registers.x = operand;
+
+          self.status.set_zero(( (self.registers.x & 0x00FF) == 0x0000 ) as u8);
+          self.status.set_negative((self.registers.y & 0b10000000 != 0) as u8);
+        },
+        Instruction::LDY => {
+          let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+          self.registers.y = operand;
+
+          self.status.set_zero(( (self.registers.y & 0x00FF) == 0x0000 ) as u8);
+          self.status.set_negative((self.registers.y & 0b10000000 != 0) as u8);
+        },
+        Instruction::LSR => {
+          let operand;
+
+          if matches!(addr_mode, AddressingMode::IMP) {
+            operand = self.registers.a;
+          } else {
+            operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+          }
+          self.status.set_carry((operand & 0x0001 != 0) as u8);
+
+          let result: u16 = (operand as u16) >> 1;
+
+          self.status.set_zero(( (result & 0xFF) == 0) as u8);
+          self.status.set_negative(((result & 0b10000000) != 0) as u8);
+          if matches!(addr_mode, AddressingMode::IMP) {
+            self.registers.a = (result & 0xFF) as u8;
+          } else {
+            self.bus.write(self.absolute_mem_address, (result & 0xFF) as u8).unwrap();
+          }
+        },
+        Instruction::NOP => {
+          // No Operation
+
+          /* Some games use illegal opcodes, which are NOP but have special behaviours.
+            These behaviours are nor implemented. The following games are guilty: 
+            Beauty and the Beast (E) (1994) uses $80 (a 2-byte NOP).[2]
+            Disney's Aladdin (E) (December 1994) uses $07 (SLO). This is Virgin's port of the Game Boy game, itself a port of the Genesis game, not any of the pirate originals.
+            Dynowarz: Destruction of Spondylus (April 1990) uses 1-byte NOPs $DA and $FA on the first level when your dino throws his fist.
+            F-117A Stealth Fighter uses $89 (a 2-byte NOP).
+            Gaau Hok Gwong Cheung (Ch) uses $8B (XAA immediate) as a 2-byte NOP. The game malfunctions after selecting Left from the main menu if that instruction is not emulated.
+            Infiltrator uses $89 (a 2-byte NOP).
+            Puzznic (all regions) (US release November 1990) uses $89 (a 2-byte NOP).
+            Super Cars (U) (February 1991) uses $B3 (LAX).
+          */
+        },
+        Instruction::ORA => { // OR with accum
+          let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+          self.registers.a |= operand;
+          self.status.set_zero(( (self.registers.a & 0x00FF) == 0x0000 ) as u8);
+          self.status.set_negative((self.registers.a & 0b10000000 != 0) as u8);
+        },
         Instruction::PHA => {
-          self.bus.write(STACK_START_ADDR + self.registers.sp, self.registers.a).unwrap();
+          self.bus.write(STACK_START_ADDR + self.registers.sp as u16, self.registers.a).unwrap();
           self.registers.sp -= 1;
         },
         Instruction::PHP => {
-          self.bus.write(STACK_START_ADDR + self.registers.sp, self.status.flags).unwrap();
+          self.bus.write(STACK_START_ADDR + self.registers.sp as u16, self.status.flags).unwrap();
           self.registers.sp -= 1;
         },
         Instruction::PLA => {
           self.registers.sp += 1;
-          self.registers.a = self.bus.read(STACK_START_ADDR + self.registers.sp, false).unwrap();
+          self.registers.a = self.bus.read(STACK_START_ADDR + self.registers.sp as u16, false).unwrap();
           self.status.set_zero((self.registers.a == 0) as u8);
           self.status.set_negative((self.registers.a & 0b10000000 != 0) as u8);
         },
         Instruction::PLP => {
-          self.status.flags = self.bus.read(STACK_START_ADDR + self.registers.sp, false).unwrap();
+          self.status.flags = self.bus.read(STACK_START_ADDR + self.registers.sp as u16, false).unwrap();
           self.registers.sp += 1;
         },
-        Instruction::ROL => todo!(),
-        Instruction::ROR => todo!(),
+        Instruction::ROL => {
+          let operand;
+
+          if matches!(addr_mode, AddressingMode::IMP) {
+            operand = self.registers.a;
+          } else {
+            operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+          }
+
+          let result = ((operand as u16) << 1) | (self.status.get_carry() as u16);
+
+          self.status.set_carry(((result & 0xFF00) != 0) as u8);
+          self.status.set_zero(( (result & 0xFF) == 0) as u8);
+          self.status.set_negative(((result & 0b10000000) != 0) as u8);
+
+          if matches!(addr_mode, AddressingMode::IMP) {
+            self.registers.a = (result & 0xFF) as u8;
+          } else {
+            self.bus.write(self.absolute_mem_address, (result & 0xFF) as u8).unwrap();
+          }
+        },
+        Instruction::ROR => {
+          let operand;
+
+          if matches!(addr_mode, AddressingMode::IMP) {
+            operand = self.registers.a;
+          } else {
+            operand = self.bus.read(self.absolute_mem_address, false).unwrap();
+          }
+
+          let result = ((self.status.get_carry() as u16) << 7) | ((operand as u16) >> 1);
+
+          self.status.set_carry(((result & 0x01) != 0) as u8);
+          self.status.set_zero(( (result & 0xFF) == 0) as u8);
+          self.status.set_negative(((result & 0b10000000) != 0) as u8);
+
+          if matches!(addr_mode, AddressingMode::IMP) {
+            self.registers.a = (result & 0xFF) as u8;
+          } else {
+            self.bus.write(self.absolute_mem_address, (result & 0xFF) as u8).unwrap();
+          }
+        },
         Instruction::RTI => {
           self.registers.sp += 1;
-          self.status.flags = self.bus.read(STACK_START_ADDR + self.registers.sp, false).unwrap();
+          self.status.flags = self.bus.read(STACK_START_ADDR + self.registers.sp as u16, false).unwrap();
 
           self.status.set_brk_command(0);
           self.status.set_unused_bit(0);
 
           self.registers.sp += 1;
-          self.registers.pc = self.bus.read_word_little_endian(STACK_START_ADDR + self.registers.sp, false).unwrap();
+          self.registers.pc = self.bus.read_word_little_endian(STACK_START_ADDR + self.registers.sp as u16, false).unwrap();
           self.registers.sp += 1;
         },
-        Instruction::RTS => todo!(),
+        Instruction::RTS => {
+          self.registers.sp += 1;
+          self.registers.pc = self.bus.read_word_little_endian(STACK_START_ADDR + self.registers.sp as u16, false).unwrap();
+          self.registers.pc += 1;
+        },
         Instruction::SBC => {
           let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
 
@@ -685,19 +854,55 @@ impl Ben6502 {
           self.registers.a = (result & 0x00FF) as u8;
           todo!("Might require an additional clock cycle :S");
         },
-        Instruction::SEC => todo!(),
-        Instruction::SED => todo!(),
-        Instruction::SEI => todo!(),
-        Instruction::STA => todo!(),
-        Instruction::STX => todo!(),
-        Instruction::STY => todo!(),
-        Instruction::TAX => todo!(),
-        Instruction::TAY => todo!(),
-        Instruction::TSX => todo!(),
-        Instruction::TXA => todo!(),
-        Instruction::TXS => todo!(),
-        Instruction::TYA => todo!(),
-        Instruction::XXX => todo!(),
+        Instruction::SEC => {
+          self.status.set_carry(1);
+        },
+        Instruction::SED => {
+          self.status.set_decimal_mode(1);
+        },
+        Instruction::SEI => {
+          self.status.set_irq_disable(1);
+        },
+        Instruction::STA => {
+          self.bus.write(self.absolute_mem_address, self.registers.a).unwrap();
+        },
+        Instruction::STX => {
+          self.bus.write(self.absolute_mem_address, self.registers.x).unwrap();
+        },
+        Instruction::STY => {
+          self.bus.write(self.absolute_mem_address, self.registers.y).unwrap();
+        },
+        Instruction::TAX => {
+          self.registers.x = self.registers.a;
+          self.status.set_zero((self.registers.x == 0) as u8);
+          self.status.set_negative(((self.registers.x & 0b10000000) != 0) as u8);
+        },
+        Instruction::TAY => {
+          self.registers.y = self.registers.a;
+          self.status.set_zero((self.registers.y == 0) as u8);
+          self.status.set_negative(((self.registers.y & 0b10000000) != 0) as u8);
+        },
+        Instruction::TSX => {
+          self.registers.x = self.registers.sp;
+          self.status.set_zero((self.registers.x == 0) as u8);
+          self.status.set_negative(((self.registers.x & 0b10000000) != 0) as u8);
+        },
+        Instruction::TXA => {
+          self.registers.a = self.registers.x;
+          self.status.set_zero((self.registers.a == 0) as u8);
+          self.status.set_negative(((self.registers.a & 0b10000000) != 0) as u8);
+        },
+        Instruction::TXS => {
+          self.registers.sp = self.registers.x;
+        },
+        Instruction::TYA => {
+          self.registers.a = self.registers.y;
+          self.status.set_zero((self.registers.a == 0) as u8);
+          self.status.set_negative(((self.registers.a & 0b10000000) != 0) as u8);
+        },
+        Instruction::XXX => {
+          // Illegal opcode (no action)
+        },
     }
 
   }
@@ -731,16 +936,16 @@ impl Ben6502 {
       return;
     }
   
-    self.bus.write(STACK_START_ADDR + self.registers.sp, ((self.registers.pc >> 8) & 0xFF) as u8).unwrap();
+    self.bus.write(STACK_START_ADDR + self.registers.sp as u16, ((self.registers.pc >> 8) & 0xFF) as u8).unwrap();
     self.registers.sp -= 1;
-    self.bus.write(STACK_START_ADDR + self.registers.sp, ( self.registers.pc       & 0xFF) as u8).unwrap();
+    self.bus.write(STACK_START_ADDR + self.registers.sp as u16, ( self.registers.pc       & 0xFF) as u8).unwrap();
     self.registers.sp -= 1;
 
     self.status.set_brk_command(0);
     self.status.set_unused_bit(1);
     self.status.set_irq_disable(1);
 
-    self.bus.write(STACK_START_ADDR + self.registers.sp, self.status.flags).unwrap();
+    self.bus.write(STACK_START_ADDR + self.registers.sp as u16, self.status.flags).unwrap();
     self.registers.sp -= 1;
 
     // Like on reset, the cpu goes to a hard-wired address, takes a pointer
@@ -753,16 +958,16 @@ impl Ben6502 {
 
   fn nmi(&mut self) {
 
-    self.bus.write(STACK_START_ADDR + self.registers.sp, ((self.registers.pc >> 8) & 0xFF) as u8).unwrap();
+    self.bus.write(STACK_START_ADDR + self.registers.sp as u16, ((self.registers.pc >> 8) & 0xFF) as u8).unwrap();
     self.registers.sp -= 1;
-    self.bus.write(STACK_START_ADDR + self.registers.sp, ( self.registers.pc       & 0xFF) as u8).unwrap();
+    self.bus.write(STACK_START_ADDR + self.registers.sp as u16, ( self.registers.pc       & 0xFF) as u8).unwrap();
     self.registers.sp -= 1;
 
     self.status.set_brk_command(0);
     self.status.set_unused_bit(1);
     self.status.set_irq_disable(1);
 
-    self.bus.write(STACK_START_ADDR + self.registers.sp, self.status.flags).unwrap();
+    self.bus.write(STACK_START_ADDR + self.registers.sp as u16, self.status.flags).unwrap();
     self.registers.sp -= 1;
 
     // Like on reset, the cpu goes to a hard-wired address, takes a pointer
@@ -781,7 +986,7 @@ impl Ben6502 {
       self.current_instruction_remaining_cycles = next_instruction_data.cycles;
       // self.needs_additional_cycle = false;
       self.set_addressing_mode(&next_instruction_data.addressing_mode);
-      self.execute_instruction(&next_instruction_data.instruction);
+      self.execute_instruction(&next_instruction_data.instruction, &next_instruction_data.addressing_mode);
 
       todo!("We should check if both the set_addressing_mode as well as the execute_instruction functions required more cycles, rather than\
             directly increasing the cycle counter inside of those functions. I'm not quite sure how the whole thing works, so I should read up :)");
