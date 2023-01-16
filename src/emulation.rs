@@ -75,6 +75,29 @@ mod bitwise_utils {
   }
 }
 
+mod hex_utils {
+  pub fn decimal_byte_to_hex_str(decimal: u8) -> String {
+    let mut result = String::new();
+    let least_sig_digit_value = decimal % 16;
+    let most_sig_digit_value = (decimal - least_sig_digit_value) / 16;
+    result.push(decimal_value_to_hex_char(most_sig_digit_value));
+    result.push(decimal_value_to_hex_char(least_sig_digit_value));
+    return result;
+  }
+
+  fn decimal_value_to_hex_char(val: u8) -> char {
+    match val {
+      10 => return 'A',
+      11 => return 'B',
+      12 => return 'C',
+      13 => return 'D',
+      14 => return 'E',
+      15 => return 'F',
+      _ => return char::from_digit(val.into(), 10).unwrap()
+    }
+  }
+}
+
 
 
 /*
@@ -317,7 +340,7 @@ const INTERRUPT_START_POINTER_ADDR: u16 = 0xFFFE;
 const NMI_START_POINTER_ADDR: u16 = 0xFFFA;
 
 pub struct Ben6502 {
-  bus: Bus16Bit,
+  pub bus: Bus16Bit,
 
   status: Status,
   registers: Registers,
@@ -1016,7 +1039,7 @@ impl Bus16Bit {
     }
   }
 
-  pub fn read(&mut self, addr: u16, readOnly: bool) -> Result<u8, String> {
+  pub fn read(&self, addr: u16, readOnly: bool) -> Result<u8, String> {
     for device in self.devices.iter() {
       if device.in_memory_bounds(addr) {
         return device.read(addr);
@@ -1044,6 +1067,30 @@ impl Bus16Bit {
       }
     }
     return Err(String::from("Error writing to memory bus (No device found in given address)."))
-
   }
+
+  pub fn get_memory_content_as_string(&self, start_addr: u16, end_addr: u16) -> String {
+    let mut result = String::new();
+    for curr_addr in start_addr..end_addr {
+      let memory_content = self.read(curr_addr, false).unwrap();
+      result.push_str(&hex_utils::decimal_byte_to_hex_str(memory_content));
+      result.push_str(" ");
+    }
+    return result;
+  }
+}
+
+
+#[cfg(test)]
+mod bus_tests {
+  use super::Bus16Bit;
+
+  #[test]
+  fn test_get_memory_content_as_string() {
+    let bus = Bus16Bit::new();
+    println!("Meeey hona");
+
+    println!("{}", bus.get_memory_content_as_string(0, 100));
+  }
+
 }
