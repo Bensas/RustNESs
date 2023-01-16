@@ -2,7 +2,7 @@ mod emulation;
 use emulation::{ Bus16Bit, Ben6502};
 
 
-use iced::widget::{button, column, text};
+use iced::widget::{button, column, row, text};
 use iced::{Alignment, Element, Sandbox, Settings};
 
 fn main() {
@@ -48,6 +48,11 @@ impl Sandbox for Counter {
       column![
           text(self.cpu.bus.get_memory_content_as_string(0, 100)).size(50),
           button("Next Instruction").on_press(Message::NextInstruction),
+          text("Cpu registers:"),
+          row![
+            text("A: "),
+            text(self.cpu.registers.a.to_string())
+          ]
       ]
       .padding(20)
       .align_items(Alignment::Center)

@@ -107,15 +107,15 @@ File: ben6502.rs
 
 
 */
-struct Registers {
-  a: u8,
-  x: u8,
-  y: u8,
-  sp: u8,
-  pc: u16
+pub struct Registers {
+  pub a: u8,
+  pub x: u8,
+  pub y: u8,
+  pub sp: u8,
+  pub pc: u16
 }
 
-struct Status {
+pub struct Status {
   flags: u8
 }
 
@@ -342,8 +342,8 @@ const NMI_START_POINTER_ADDR: u16 = 0xFFFA;
 pub struct Ben6502 {
   pub bus: Bus16Bit,
 
-  status: Status,
-  registers: Registers,
+  pub status: Status,
+  pub registers: Registers,
 
 
   current_instruction_remaining_cycles: u8,
