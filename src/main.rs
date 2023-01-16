@@ -49,10 +49,17 @@ impl Sandbox for CPUVisualizer {
   }
 
   fn view(&self) -> Element<Message> {
+    let ram_start_addr = 0x8000;
+    let ram_end_addr = 0x8010;
+
+    let stack_start_addr = 0x100 + emulation::SP_RESET_ADDR as u16 - 100;
+    let stack_end_addr = 0x100 + emulation::SP_RESET_ADDR as u16;
       column![
-          text("RAM contents (Addr 0xFFFA - 0xFFFF):"),
-          text(self.cpu.bus.get_memory_content_as_string(0x8000, 0x8010)).size(20),
-          button("Next Instruction").on_press(Message::NextInstruction),
+          text(format!("RAM contents (Addr 0x{:x} - 0x{:x}):", ram_start_addr, ram_end_addr)),
+          text(self.cpu.bus.get_memory_content_as_string(ram_start_addr, ram_end_addr)).size(20),
+          text(format!("Stack contents (Addr 0x{:x} - 0x{:x}):", stack_start_addr, stack_end_addr)),
+          text(self.cpu.bus.get_memory_content_as_string(stack_start_addr, stack_end_addr)).size(20),
+          button("Next Clock Cycle").on_press(Message::NextInstruction),
           row![
             column![
               text("Cpu registers:").size(20),
@@ -83,6 +90,9 @@ impl Sandbox for CPUVisualizer {
               text(self.cpu.status.get_brk_command().to_string()),
               text("IRQ Disable: "),
               text(self.cpu.status.get_irq_disable().to_string())
+            ],
+            column![
+              text(format!("Remaining cycles in curr instruction: {}", self.cpu.current_instruction_remaining_cycles)).size(15),
             ]
           ]
       ]

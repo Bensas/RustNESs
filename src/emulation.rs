@@ -348,6 +348,8 @@ const INSTRUCTION_TABLE: [InstructionData; 256] =
 
 const STACK_START_ADDR: u16 = 0x100;
 
+pub const SP_RESET_ADDR: u8 = 0xFD;
+
 const PROGRAM_START_POINTER_ADDR: u16 = 0xFFFC;
 
 const INTERRUPT_START_POINTER_ADDR: u16 = 0xFFFE;
@@ -361,7 +363,7 @@ pub struct Ben6502 {
   pub registers: Registers,
 
 
-  current_instruction_remaining_cycles: u8,
+  pub current_instruction_remaining_cycles: u8,
   needs_additional_cycle: bool,
   // fetched_data: u8,
   absolute_mem_address: u16,
@@ -951,7 +953,7 @@ impl Ben6502 {
     self.registers.x = 0;
     self.registers.y = 0;
 
-    self.registers.sp = 0xFD;
+    self.registers.sp = SP_RESET_ADDR;
     
     self.status.reset();
 
