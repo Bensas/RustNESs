@@ -75,7 +75,22 @@ mod bitwise_utils {
   }
 }
 
-mod hex_utils {
+pub mod hex_utils {
+  pub fn decimal_word_to_hex_str(word: u16) -> String {
+    let mut result = String::new();
+
+    let mut factor = 16 as u32;
+    let mut curr_val = word as u32;
+    while (curr_val != 0) {
+      let digit = (curr_val % factor) / (factor/16);
+      result.push(decimal_value_to_hex_char(digit as u8));
+      curr_val -= curr_val % factor;
+      factor *= 16;
+    }
+    
+    return result.chars().rev().collect();
+  }
+
   pub fn decimal_byte_to_hex_str(decimal: u8) -> String {
     let mut result = String::new();
     let least_sig_digit_value = decimal % 16;
@@ -131,7 +146,7 @@ impl Status {
     self.flags = 0b00100000;
   }
 
-  fn get_carry(&self) -> u8 {
+  pub fn get_carry(&self) -> u8 {
     return bitwise_utils::get_bit(self.flags, 0);
   }
 
@@ -139,7 +154,7 @@ impl Status {
     bitwise_utils::set_bit(&mut self.flags, 0, value);
   }
 
-  fn get_zero(&self) -> u8 {
+  pub fn get_zero(&self) -> u8 {
     return bitwise_utils::get_bit(self.flags, 1);
   }
 
@@ -147,7 +162,7 @@ impl Status {
     bitwise_utils::set_bit(&mut self.flags, 1, value);
   }
 
-  fn get_irq_disable(&self) -> u8 {
+  pub fn get_irq_disable(&self) -> u8 {
     return bitwise_utils::get_bit(self.flags, 2);
   }
 
@@ -155,7 +170,7 @@ impl Status {
     bitwise_utils::set_bit(&mut self.flags, 2, value);
   }
 
-  fn get_decimal_mode(&self) -> u8 {
+  pub fn get_decimal_mode(&self) -> u8 {
     return bitwise_utils::get_bit(self.flags, 3);
   }
 
@@ -163,7 +178,7 @@ impl Status {
     bitwise_utils::set_bit(&mut self.flags, 3, value);
   }
 
-  fn get_brk_command(&self) -> u8 {
+  pub fn get_brk_command(&self) -> u8 {
     return bitwise_utils::get_bit(self.flags, 4);
   }
 
@@ -171,7 +186,7 @@ impl Status {
     bitwise_utils::set_bit(&mut self.flags, 4, value);
   }
 
-  fn get_unused_bit(&self) -> u8 {
+  pub fn get_unused_bit(&self) -> u8 {
     return bitwise_utils::get_bit(self.flags, 5);
   }
 
@@ -179,7 +194,7 @@ impl Status {
     bitwise_utils::set_bit(&mut self.flags, 5, value);
   }
 
-  fn get_overflow(&self) -> u8 {
+  pub fn get_overflow(&self) -> u8 {
     return bitwise_utils::get_bit(self.flags, 6);
   }
 
@@ -187,7 +202,7 @@ impl Status {
     bitwise_utils::set_bit(&mut self.flags, 6, value);
   }
 
-  fn get_negative(&self) -> u8 {
+  pub fn get_negative(&self) -> u8 {
     return bitwise_utils::get_bit(self.flags, 7);
   }
 
@@ -356,7 +371,7 @@ pub struct Ben6502 {
 
 impl Ben6502 {
   pub fn new(mem_bus: Bus16Bit) -> Ben6502 {
-    return Ben6502 {
+    let mut result = Ben6502 {
       bus: mem_bus,
       status: Status::new(),
       registers: Registers { a: 0, x: 0, y: 0, sp: 0, pc: 0 },
@@ -365,6 +380,8 @@ impl Ben6502 {
       absolute_mem_address: 0,
       relative_mem_address: 0
     };
+    result.reset();
+    return result;
   }
 
   fn set_addressing_mode(&mut self, mode: &AddressingMode) {
@@ -1005,8 +1022,8 @@ impl Ben6502 {
       self.set_addressing_mode(&next_instruction_data.addressing_mode);
       self.execute_instruction(&next_instruction_data.instruction, &next_instruction_data.addressing_mode);
 
-      todo!("We should check if both the set_addressing_mode as well as the execute_instruction functions required more cycles, rather than\
-            directly increasing the cycle counter inside of those functions. I'm not quite sure how the whole thing works, so I should read up :)");
+      // todo!("We should check if both the set_addressing_mode as well as the execute_instruction functions required more cycles, rather than\
+      //       directly increasing the cycle counter inside of those functions. I'm not quite sure how the whole thing works, so I should read up :)");
       // if self.needs_additional_cycle {
       //   self.current_instruction_remaining_cycles += 1;
       // }
@@ -1071,8 +1088,10 @@ impl Bus16Bit {
 
   pub fn get_memory_content_as_string(&self, start_addr: u16, end_addr: u16) -> String {
     let mut result = String::new();
+    // print!("Heeeylkfdslk");
     for curr_addr in start_addr..end_addr {
       let memory_content = self.read(curr_addr, false).unwrap();
+      // print!("{}", memory_content);
       result.push_str(&hex_utils::decimal_byte_to_hex_str(memory_content));
       result.push_str(" ");
     }
