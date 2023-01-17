@@ -368,7 +368,7 @@ pub struct Ben6502 {
   needs_additional_cycle: bool,
   // fetched_data: u8,
   absolute_mem_address: u16,
-  relative_mem_address: u8,
+  relative_mem_address: i8,
 
 }
 
@@ -439,7 +439,7 @@ impl Ben6502 {
         // Implied addressing means that no address is required to execute the instruction
       },
       AddressingMode::REL => {
-        self.relative_mem_address = self.bus.read(self.registers.pc, false).unwrap();
+        self.relative_mem_address = self.bus.read(self.registers.pc, false).unwrap() as i8;
         self.registers.pc += 1;
       },
       AddressingMode::INX => {
@@ -520,7 +520,7 @@ impl Ben6502 {
         Instruction::BCC => {
           if (self.status.get_carry() == 0) {
             self.current_instruction_remaining_cycles += 1;
-            self.absolute_mem_address = self.registers.pc + self.relative_mem_address as u16;
+            self.absolute_mem_address = (self.registers.pc as i16 + self.relative_mem_address as i16) as u16;;
             if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
               self.current_instruction_remaining_cycles += 1;
             }
@@ -531,7 +531,7 @@ impl Ben6502 {
         Instruction::BCS => {
           if (self.status.get_carry() == 1) {
             self.current_instruction_remaining_cycles += 1;
-            self.absolute_mem_address = self.registers.pc + self.relative_mem_address as u16;
+            self.absolute_mem_address = (self.registers.pc as i16 + self.relative_mem_address as i16) as u16;;
             if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
               self.current_instruction_remaining_cycles += 1;
             }
@@ -542,7 +542,7 @@ impl Ben6502 {
         Instruction::BEQ => {
           if (self.status.get_zero() == 1) {
             self.current_instruction_remaining_cycles += 1;
-            self.absolute_mem_address = self.registers.pc + self.relative_mem_address as u16;
+            self.absolute_mem_address = (self.registers.pc as i16 + self.relative_mem_address as i16) as u16;
             if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
               self.current_instruction_remaining_cycles += 1;
             }
@@ -561,7 +561,7 @@ impl Ben6502 {
         Instruction::BMI => {
           if (self.status.get_negative() == 1) {
             self.current_instruction_remaining_cycles += 1;
-            self.absolute_mem_address = self.registers.pc + self.relative_mem_address as u16;
+            self.absolute_mem_address = (self.registers.pc as i16 + self.relative_mem_address as i16) as u16;
             if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
               self.current_instruction_remaining_cycles += 1;
             }
@@ -572,7 +572,7 @@ impl Ben6502 {
         Instruction::BNE => {
           if (self.status.get_zero() == 0) {
             self.current_instruction_remaining_cycles += 1;
-            self.absolute_mem_address = self.registers.pc + self.relative_mem_address as u16;
+            self.absolute_mem_address = (self.registers.pc as i16 + self.relative_mem_address as i16) as u16;
             if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
               self.current_instruction_remaining_cycles += 1;
             }
@@ -583,7 +583,7 @@ impl Ben6502 {
         Instruction::BPL => {
           if (self.status.get_negative() == 0) {
             self.current_instruction_remaining_cycles += 1;
-            self.absolute_mem_address = self.registers.pc + self.relative_mem_address as u16;
+            self.absolute_mem_address = (self.registers.pc as i16 + self.relative_mem_address as i16) as u16;
             if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
               self.current_instruction_remaining_cycles += 1;
             }
@@ -614,7 +614,7 @@ impl Ben6502 {
         Instruction::BVC => {
           if (self.status.get_overflow() == 0) {
             self.current_instruction_remaining_cycles += 1;
-            self.absolute_mem_address = self.registers.pc + self.relative_mem_address as u16;
+            self.absolute_mem_address = (self.registers.pc as i16 + self.relative_mem_address as i16) as u16;
             if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
               self.current_instruction_remaining_cycles += 1;
             }
@@ -624,7 +624,7 @@ impl Ben6502 {
         Instruction::BVS => {
           if (self.status.get_overflow() == 1) {
             self.current_instruction_remaining_cycles += 1;
-            self.absolute_mem_address = self.registers.pc + self.relative_mem_address as u16;
+            self.absolute_mem_address = (self.registers.pc as i16 + self.relative_mem_address as i16) as u16;
             if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
               self.current_instruction_remaining_cycles += 1;
             }
