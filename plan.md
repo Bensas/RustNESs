@@ -67,7 +67,8 @@ Once we have this program, we can test using the following:
 
 # Potential problems in original code
 
-- [SOLVED] The Stack Pointer variable is a u8 initialized at 0. When we decrease the SP, it becomes a -1, but it's an unsigned int, so we should see what exactly is happening when we add it to the stack start address. -> When the cpu is reset, the stack pointer is increased to a higher value; it should never become 0 or negative.
+- [SOLVED] The Stack Pointer variable is a u8 initialized at 0. When we decrease the SP, it becomes a -1, but it's an unsigned int, so we should see what exactly is happening when we add it to the stack start address.
+ 	-> When the cpu is reset, the stack pointer is increased to a higher value; it should never become 0 or negative. In any case, rust detected the problem at compilation time with overflow protection; god bless this language :)
 
 # Phase 3: Bus expansion, adding PPU
 
