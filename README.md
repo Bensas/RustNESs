@@ -1,5 +1,5 @@
 # RustNESs
-NES emulator written in rust, based on [This C++ Emulator](https://github.com/OneLoneCoder/olcNES)
+NES emulator written in rust
 
 This is an absolute WiP, but it can be executed by simply running the `cargo run` command (Assumming that you have `rustup` installed. If not, you can [follow this tutorial](https://doc.rust-lang.org/book/ch01-01-installation.html#installation))
 
