@@ -73,6 +73,7 @@ Once we have this program, we can test using the following:
 # Phase 3: Bus expansion, adding PPU
 
 - Modify RAM class to have address range 0-0x1FFF with mirroring over 0x07FF
+
 - Class to represent the PPU olc2C02 (Impl Device)
 	- Includes its own bus that it can read and write to and from, with the following connected devices:
 		- VRAM -> 2 name tables, each 1024 bytes
@@ -87,6 +88,16 @@ Once we have this program, we can test using the following:
 		- 0x5 Scroll
 		- 0x6 PPu Address
 		- 0x7 PPU data
+	- Use array with 64 pixel values to store color palette, get values from nesdev
+	- Include 256x240 pixel screen buffer
+	- Include name table visualization buffers (Two name tables)
+	- Include pattern table visualization buffers (Two pattern tables)
+	- Scanline, cycle and frame_complete variables
+	- clock() function which:
+		- sets pixel value of pixel screen buffer at cycle and scan_line position using color from color palette.
+		- increases the `cycle` variable 
+		- If the cycle variable reaches 341, we set it to 0 and increase the scan_line variable
+		- If the scan_line reaches 261, we set it to -1 and se the frame_complete boolean to true;
 	
 - Class to represent the cartridge (impl Device)
 	- Program memory "PRG" (vector of bytes)
@@ -126,4 +137,8 @@ Once we have this program, we can test using the following:
 		- Read/write the data (CPU to PRG, PPu to CHR)
 
 - Method on the bus that loads a cartridge
+- We should run the ppu.clock() function three times as often as the cpu.clock() function
 
+# Phase 4: Adding screen, name table and pattern table visualization to emulator
+- Use Canvas widget with Quad primitives to draw pixels
+- Add function that calls main clock() function until PPU has completed drawing frame and then sets the boolean to false again
