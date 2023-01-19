@@ -113,6 +113,26 @@ pub mod hex_utils {
   }
 }
 
+mod graphics {
+  #[derive(Copy)]
+  pub struct Color {
+    red: u8,
+    green: u8,
+    blue: u8
+  }
+
+  impl Color {
+    pub fn new() -> Color {
+      return Color { red: 0, green: 0, blue: 0 };
+    }
+  }
+
+  impl Clone for Color {
+    fn clone(&self) -> Self {
+        Self { red: self.red.clone(), green: self.green.clone(), blue: self.blue.clone() }
+    }
+}
+}
 
 
 /*
@@ -1019,6 +1039,145 @@ impl Ben6502 {
   
 
 }
+
+
+/*
+
+
+File: Ben2C02.rs
+
+
+*/
+
+struct PPUStatus {
+  control: u8,
+  mask: u8,
+  oam_addr: u8,
+  oam_data: u8,
+  scroll: u8,
+  ppu_addr: u8,
+  ppu_data: u8
+}
+
+pub struct Ben2C02 {
+  memory_bounds: (u16, u16),
+
+  scanline: u8,
+  cycle: u8,
+  frame_render_complete: bool,
+
+  palette: [u8; 32],
+  name_tables: [[u8; 1024]; 2],
+  pattern_tables: [[u8; 4096]; 2],
+
+  
+  // These arrays are used for emulator visualization, thus the higher level Color structure
+  palette_vis_bufer: [graphics::Color; 64],
+  screen_vis_buffer: [[graphics::Color; 256]; 240],
+  name_tables_vis_buffer: [[[graphics::Color; 256]; 240]; 2],
+  pattern_tables_vis_buffer: [[[graphics::Color; 128]; 128]; 2],
+}
+
+impl Ben2C02 {
+  fn new() -> Ben2C02 {
+    return Ben2C02 {
+      memory_bounds: (0x2000, 0x3FFF),
+      scanline: 0,
+      cycle: 0,
+      frame_render_complete: false,
+      palette: [0; 32],
+      name_tables: [[0; 1024]; 2],
+      pattern_tables: [[0; 4096]; 2],
+      palette_vis_bufer: [graphics::Color::new(); 64],
+      screen_vis_buffer: [[graphics::Color::new(); 256]; 240],
+      name_tables_vis_buffer: [[[graphics::Color::new(); 256]; 240]; 2],
+      pattern_tables_vis_buffer: [[[graphics::Color::new(); 128]; 128]; 2],
+    }
+  }
+
+  fn clock() {
+
+  }
+}
+
+impl Device for Ben2C02 {
+
+  fn in_memory_bounds(&self, addr: u16)-> bool {
+    if addr >= self.memory_bounds.0 && addr <= self.memory_bounds.1 {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  fn write(&mut self, addr: u16, content: u8) -> Result<(), String> {
+    if self.in_memory_bounds(addr) {
+      let mirrored_addr = addr & 0x0007; // Equivalent to doing % 0x0007
+      match mirrored_addr {
+        0x1 => {
+
+        }, // Control
+        0x2 => {
+
+        }, // Mask
+        0x3 => {
+
+        }, // OAM Address
+        0x4 => {
+
+        }, // OAM Data
+        0x5 => {
+
+        }, // Scroll
+        0x6 => {
+
+        }, // PPu Address
+        0x7 => {
+
+        }, // PPU data
+        _ => return Err(String::from("Error while mirroring address in PPU write() function!"))
+      }
+      return Ok(());
+    } else {
+      return Err(String::from("Tried to write outside PPU bounds!"));
+    }
+  }
+
+  fn read(&self, addr: u16) -> Result<u8, String> {
+    if self.in_memory_bounds(addr) {
+      let mirrored_addr = addr & 0x0007; // Equivalent to doing % 0x0007
+      match mirrored_addr {
+        0x1 => {
+          return Ok(0);
+
+        }, // Control
+        0x2 => {
+          return Ok(0);
+        }, // Mask
+        0x3 => {
+          return Ok(0);
+        }, // OAM Address
+        0x4 => {
+          return Ok(0);
+        }, // OAM Data
+        0x5 => {
+          return Ok(0);
+        }, // Scroll
+        0x6 => {
+          return Ok(0);
+        }, // PPu Address
+        0x7 => {
+          return Ok(0);
+        }, // PPU data
+        _ => return Err(String::from("Error while mirroring address in PPU write() function!"))
+      }
+    } else {
+      return Err(String::from("Tried to read outside PPU bounds!"));
+    }
+  }
+}
+
+
 
 
 /*
