@@ -1062,8 +1062,8 @@ struct PPUStatus {
 pub struct Ben2C02 {
   memory_bounds: (u16, u16),
 
-  scanline: u8,
-  cycle: u8,
+  scan_line: i16,
+  cycle: i16,
   frame_render_complete: bool,
 
   palette: [u8; 32],
@@ -1082,7 +1082,7 @@ impl Ben2C02 {
   fn new() -> Ben2C02 {
     return Ben2C02 {
       memory_bounds: (0x2000, 0x3FFF),
-      scanline: 0,
+      scan_line: 0,
       cycle: 0,
       frame_render_complete: false,
       palette: [0; 32],
@@ -1095,7 +1095,18 @@ impl Ben2C02 {
     }
   }
 
-  fn clock() {
+  fn clock(&mut self) {
+
+     self.screen_vis_buffer[self.cycle as usize][self.scan_line as usize] = self.palette_vis_bufer[0]; // Temporary
+     self.cycle += 1;
+     if self.cycle > 340 {
+      self.cycle = 0;
+      self.scan_line += 1;
+      if (self.scan_line > 260) {
+        self.scan_line = -1;
+        self.frame_render_complete = true;
+      }
+     }
 
   }
 }
@@ -1176,6 +1187,81 @@ impl Device for Ben2C02 {
     }
   }
 }
+
+/*
+
+
+cartridge.rs
+
+
+*/
+
+struct RomHeader {
+  name: [char; 4],
+  prg_chunks: u8,
+  chr_hunks: u8,
+  mapper1: u8,
+  mapper2: u8,
+  prg_ram_size: u8,
+  tv_system_1: u8,
+  tv_system_2: u8
+  // unused: char[]
+}
+
+pub struct Cartridge {
+  memory_bounds: (u16, u16),
+
+  rom_header: RomHeader
+
+}
+
+impl Cartridge {
+  fn new() -> Cartridge {
+    return Cartridge {
+      memory_bounds: (0x8000, 0xFFFF),
+      rom_header: RomHeader {
+        name: ['\0' ;4],
+        prg_chunks: 0,
+        chr_hunks: 0,
+        mapper1: 0,
+        mapper2: 0,
+        prg_ram_size: 0,
+        tv_system_1: 0,
+        tv_system_2: 0
+      }
+    };
+  }
+
+}
+
+impl Device for Cartridge {
+
+  fn in_memory_bounds(&self, addr: u16)-> bool {
+    if addr >= self.memory_bounds.0 && addr <= self.memory_bounds.1 {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  fn write(&mut self, addr: u16, content: u8) -> Result<(), String> {
+    return Err(String::from("Tried to write to Cartridge! Read up on the definition of ROM, dumbass."));
+    // if self.in_memory_bounds(addr) {
+    //   return Ok(());
+    // } else {
+      
+    // }
+  }
+
+  fn read(&self, addr: u16) -> Result<u8, String> {
+    if self.in_memory_bounds(addr) {
+
+    } else {
+      return Err(String::from("Tried to read outside Cartridge bounds!"));
+    }
+  }
+}
+
 
 
 
