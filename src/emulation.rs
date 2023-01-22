@@ -1245,12 +1245,7 @@ impl Device for Cartridge {
   }
 
   fn write(&mut self, addr: u16, content: u8) -> Result<(), String> {
-    return Err(String::from("Tried to write to Cartridge! Read up on the definition of ROM, dumbass."));
-    // if self.in_memory_bounds(addr) {
-    //   return Ok(());
-    // } else {
-      
-    // }
+    return Err(String::from("Tried to write to Cartridge! Read up on the definition of ROM, genius."));
   }
 
   fn read(&self, addr: u16) -> Result<u8, String> {
