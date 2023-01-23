@@ -1079,7 +1079,7 @@ pub struct Ben2C02 {
 }
 
 impl Ben2C02 {
-  fn new() -> Ben2C02 {
+  fn new(cartridge: &Cartridge) -> Ben2C02 {
     return Ben2C02 {
       memory_bounds: (0x2000, 0x3FFF),
       scan_line: 0,
@@ -1188,6 +1188,22 @@ impl Device for Ben2C02 {
   }
 }
 
+
+/*
+
+
+mapper.rs
+
+
+*/
+
+trait Mapper {
+  fn mapReadAddressFromCPU(&self, addr: u16) -> Result<u16, String>;
+  fn mapWriteAddressFromCPU(&self, addr: u16) -> Result<u16, String>;
+  fn mapReadAddressFromPPU(&self, addr: u16) -> Result<u16, String>;
+  fn mapWriteAddressFromPPU(&self, addr: u16) -> Result<u16, String>;
+}
+
 /*
 
 
@@ -1209,16 +1225,19 @@ struct RomHeader {
 }
 
 pub struct Cartridge {
-  memory_bounds: (u16, u16),
-
-  rom_header: RomHeader
-
+  cpu_memory_bounds: (u16, u16),
+  ppu_memory_bounds: (u16, u16),
+  rom_header: RomHeader,
+  PRG_data: Vec<u8>,
+  CHR_data: Vec<u8>,
+  mapper: Box<dyn Mapper>
 }
 
 impl Cartridge {
-  fn new() -> Cartridge {
+  fn new(mapper: Box<dyn Mapper>) -> Cartridge {
     return Cartridge {
-      memory_bounds: (0x8000, 0xFFFF),
+      cpu_memory_bounds: (0x8000, 0xFFFF),
+      ppu_memory_bounds: (0x0000, 0x1FFF),
       rom_header: RomHeader {
         name: ['\0' ;4],
         prg_chunks: 0,
@@ -1228,8 +1247,19 @@ impl Cartridge {
         prg_ram_size: 0,
         tv_system_1: 0,
         tv_system_2: 0
-      }
+      },
+      PRG_data: vec![],
+      CHR_data: vec![],
+      mapper
     };
+  }
+
+  fn in_ppu_memory_bounds(&self, addr:u16) -> bool {
+    return addr >= self.ppu_memory_bounds.0 && addr <= self.ppu_memory_bounds.1;
+  }
+
+  fn in_cpu_memory_bounds(&self, addr:u16) -> bool {
+    return addr >= self.cpu_memory_bounds.0 && addr <= self.cpu_memory_bounds.1;
   }
 
 }
@@ -1237,7 +1267,7 @@ impl Cartridge {
 impl Device for Cartridge {
 
   fn in_memory_bounds(&self, addr: u16)-> bool {
-    if addr >= self.memory_bounds.0 && addr <= self.memory_bounds.1 {
+    if self.in_cpu_memory_bounds(addr) || self.in_ppu_memory_bounds(addr) {
       return true;
     } else {
       return false;
@@ -1249,14 +1279,21 @@ impl Device for Cartridge {
   }
 
   fn read(&self, addr: u16) -> Result<u8, String> {
-    if self.in_memory_bounds(addr) {
-
+    if self.in_cpu_memory_bounds(addr) {
+      // Read operation from CPU
+      let mapped_addr = self.mapper.mapReadAddressFromCPU(addr).unwrap();
+      let data = self.PRG_data.get(mapped_addr as usize).unwrap();
+      return Ok(*data);
+    } else if self.in_ppu_memory_bounds(addr) {
+      // Read operation from PPU
+      let mapped_addr = self.mapper.mapReadAddressFromPPU(addr).unwrap();
+      let data = self.CHR_data.get(mapped_addr as usize).unwrap();
+      return Ok(*data);
     } else {
       return Err(String::from("Tried to read outside Cartridge bounds!"));
     }
   }
 }
-
 
 
 
