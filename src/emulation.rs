@@ -122,8 +122,8 @@ mod graphics {
   }
 
   impl Color {
-    pub fn new() -> Color {
-      return Color { red: 0, green: 0, blue: 0 };
+    pub fn new(red: u8, green: u8, blue: u8) -> Color {
+      return Color { red, green, blue };
     }
   }
 
@@ -346,7 +346,6 @@ struct InstructionData {
 
 // Original table was taken from https://github.com/OneLoneCoder/olcNES/blob/master/Part%232%20-%20CPU/olc6502.cpp
 // Author: David Barr, aka javidx9 or OneLoneCoder
-// Thank you so much dude
 const INSTRUCTION_TABLE: [InstructionData; 256] = 
 [
 	InstructionData{instruction: Instruction::BRK, addressing_mode: AddressingMode::IMM, cycles: 7 },InstructionData{instruction: Instruction::ORA, addressing_mode: AddressingMode::INX, cycles: 6 },InstructionData{instruction: Instruction::XXX, addressing_mode: AddressingMode::IMP, cycles: 2 },InstructionData{instruction: Instruction::XXX, addressing_mode: AddressingMode::IMP, cycles: 8 },InstructionData{instruction: Instruction::XXX, addressing_mode: AddressingMode::IMP, cycles: 3 },InstructionData{instruction: Instruction::ORA, addressing_mode: AddressingMode::ZP0, cycles: 3 },InstructionData{instruction: Instruction::ASL, addressing_mode: AddressingMode::ZP0, cycles: 5 },InstructionData{instruction: Instruction::XXX, addressing_mode: AddressingMode::IMP, cycles: 5 },InstructionData{instruction: Instruction::PHP, addressing_mode: AddressingMode::IMP, cycles: 3 },InstructionData{instruction: Instruction::ORA, addressing_mode: AddressingMode::IMM, cycles: 2 },InstructionData{instruction: Instruction::ASL, addressing_mode: AddressingMode::ACC, cycles: 2 },InstructionData{instruction: Instruction::XXX, addressing_mode: AddressingMode::IMP, cycles: 2 },InstructionData{instruction: Instruction::XXX, addressing_mode: AddressingMode::IMP, cycles: 4 },InstructionData{instruction: Instruction::ORA, addressing_mode: AddressingMode::ABS, cycles: 4 },InstructionData{instruction: Instruction::ASL, addressing_mode: AddressingMode::ABS, cycles: 6 },InstructionData{instruction: Instruction::XXX, addressing_mode: AddressingMode::IMP, cycles: 6 },
@@ -1049,6 +1048,82 @@ File: Ben2C02.rs
 
 */
 
+fn create_palette_vis_buffer() -> [graphics::Color; 64]{
+  let mut buffer= [graphics::Color::new(0, 0, 0);64];
+
+  // Original color assignments taken from https://github.com/OneLoneCoder/olcNES/blob/master/Part%20%233%20-%20Buses%2C%20Rams%2C%20Roms%20%26%20Mappers/olc2C02.cpp
+  // Author: David Barr, aka javidx9 or OneLoneCoder
+
+  buffer[0x00] = graphics::Color::new(84, 84, 84);
+	buffer[0x01] = graphics::Color::new(0, 30, 116);
+	buffer[0x02] = graphics::Color::new(8, 16, 144);
+	buffer[0x03] = graphics::Color::new(48, 0, 136);
+	buffer[0x04] = graphics::Color::new(68, 0, 100);
+	buffer[0x05] = graphics::Color::new(92, 0, 48);
+	buffer[0x06] = graphics::Color::new(84, 4, 0);
+	buffer[0x07] = graphics::Color::new(60, 24, 0);
+	buffer[0x08] = graphics::Color::new(32, 42, 0);
+	buffer[0x09] = graphics::Color::new(8, 58, 0);
+	buffer[0x0A] = graphics::Color::new(0, 64, 0);
+	buffer[0x0B] = graphics::Color::new(0, 60, 0);
+	buffer[0x0C] = graphics::Color::new(0, 50, 60);
+	buffer[0x0D] = graphics::Color::new(0, 0, 0);
+	buffer[0x0E] = graphics::Color::new(0, 0, 0);
+	buffer[0x0F] = graphics::Color::new(0, 0, 0);
+
+	buffer[0x10] = graphics::Color::new(152, 150, 152);
+	buffer[0x11] = graphics::Color::new(8, 76, 196);
+	buffer[0x12] = graphics::Color::new(48, 50, 236);
+	buffer[0x13] = graphics::Color::new(92, 30, 228);
+	buffer[0x14] = graphics::Color::new(136, 20, 176);
+	buffer[0x15] = graphics::Color::new(160, 20, 100);
+	buffer[0x16] = graphics::Color::new(152, 34, 32);
+	buffer[0x17] = graphics::Color::new(120, 60, 0);
+	buffer[0x18] = graphics::Color::new(84, 90, 0);
+	buffer[0x19] = graphics::Color::new(40, 114, 0);
+	buffer[0x1A] = graphics::Color::new(8, 124, 0);
+	buffer[0x1B] = graphics::Color::new(0, 118, 40);
+	buffer[0x1C] = graphics::Color::new(0, 102, 120);
+	buffer[0x1D] = graphics::Color::new(0, 0, 0);
+	buffer[0x1E] = graphics::Color::new(0, 0, 0);
+	buffer[0x1F] = graphics::Color::new(0, 0, 0);
+
+	buffer[0x20] = graphics::Color::new(236, 238, 236);
+	buffer[0x21] = graphics::Color::new(76, 154, 236);
+	buffer[0x22] = graphics::Color::new(120, 124, 236);
+	buffer[0x23] = graphics::Color::new(176, 98, 236);
+	buffer[0x24] = graphics::Color::new(228, 84, 236);
+	buffer[0x25] = graphics::Color::new(236, 88, 180);
+	buffer[0x26] = graphics::Color::new(236, 106, 100);
+	buffer[0x27] = graphics::Color::new(212, 136, 32);
+	buffer[0x28] = graphics::Color::new(160, 170, 0);
+	buffer[0x29] = graphics::Color::new(116, 196, 0);
+	buffer[0x2A] = graphics::Color::new(76, 208, 32);
+	buffer[0x2B] = graphics::Color::new(56, 204, 108);
+	buffer[0x2C] = graphics::Color::new(56, 180, 204);
+	buffer[0x2D] = graphics::Color::new(60, 60, 60);
+	buffer[0x2E] = graphics::Color::new(0, 0, 0);
+	buffer[0x2F] = graphics::Color::new(0, 0, 0);
+
+	buffer[0x30] = graphics::Color::new(236, 238, 236);
+	buffer[0x31] = graphics::Color::new(168, 204, 236);
+	buffer[0x32] = graphics::Color::new(188, 188, 236);
+	buffer[0x33] = graphics::Color::new(212, 178, 236);
+	buffer[0x34] = graphics::Color::new(236, 174, 236);
+	buffer[0x35] = graphics::Color::new(236, 174, 212);
+	buffer[0x36] = graphics::Color::new(236, 180, 176);
+	buffer[0x37] = graphics::Color::new(228, 196, 144);
+	buffer[0x38] = graphics::Color::new(204, 210, 120);
+	buffer[0x39] = graphics::Color::new(180, 222, 120);
+	buffer[0x3A] = graphics::Color::new(168, 226, 144);
+	buffer[0x3B] = graphics::Color::new(152, 226, 180);
+	buffer[0x3C] = graphics::Color::new(160, 214, 228);
+	buffer[0x3D] = graphics::Color::new(160, 162, 160);
+	buffer[0x3E] = graphics::Color::new(0, 0, 0);
+	buffer[0x3F] = graphics::Color::new(0, 0, 0);
+  return buffer;
+}
+
 struct PPUStatus {
   control: u8,
   mask: u8,
@@ -1059,8 +1134,10 @@ struct PPUStatus {
   ppu_data: u8
 }
 
-pub struct Ben2C02 {
+pub struct Ben2C02<'a> {
   memory_bounds: (u16, u16),
+
+  cartridge: &'a Cartridge,
 
   scan_line: i16,
   cycle: i16,
@@ -1078,26 +1155,27 @@ pub struct Ben2C02 {
   pattern_tables_vis_buffer: [[[graphics::Color; 128]; 128]; 2],
 }
 
-impl Ben2C02 {
+impl Ben2C02<'_> {
   fn new(cartridge: &Cartridge) -> Ben2C02 {
     return Ben2C02 {
       memory_bounds: (0x2000, 0x3FFF),
+      cartridge: cartridge,
       scan_line: 0,
       cycle: 0,
       frame_render_complete: false,
       palette: [0; 32],
       name_tables: [[0; 1024]; 2],
       pattern_tables: [[0; 4096]; 2],
-      palette_vis_bufer: [graphics::Color::new(); 64],
-      screen_vis_buffer: [[graphics::Color::new(); 256]; 240],
-      name_tables_vis_buffer: [[[graphics::Color::new(); 256]; 240]; 2],
-      pattern_tables_vis_buffer: [[[graphics::Color::new(); 128]; 128]; 2],
+      palette_vis_bufer: create_palette_vis_buffer(),
+      screen_vis_buffer: [[graphics::Color::new(0, 0, 0); 256]; 240],
+      name_tables_vis_buffer: [[[graphics::Color::new(0, 0, 0); 256]; 240]; 2],
+      pattern_tables_vis_buffer: [[[graphics::Color::new(0, 0, 0); 128]; 128]; 2],
     }
   }
 
   fn clock(&mut self) {
 
-     self.screen_vis_buffer[self.cycle as usize][self.scan_line as usize] = self.palette_vis_bufer[0]; // Temporary
+     self.screen_vis_buffer[self.cycle as usize][self.scan_line as usize] = self.palette_vis_bufer[0x11]; // Temporary
      self.cycle += 1;
      if self.cycle > 340 {
       self.cycle = 0;
@@ -1111,7 +1189,7 @@ impl Ben2C02 {
   }
 }
 
-impl Device for Ben2C02 {
+impl Device for Ben2C02<'_> {
 
   fn in_memory_bounds(&self, addr: u16)-> bool {
     if addr >= self.memory_bounds.0 && addr <= self.memory_bounds.1 {
@@ -1198,10 +1276,83 @@ mapper.rs
 */
 
 trait Mapper {
+  fn in_cpu_address_bounds(&self, addr:u16) -> bool;
+  fn in_ppu_address_bounds(&self, addr:u16) -> bool;
+
   fn mapReadAddressFromCPU(&self, addr: u16) -> Result<u16, String>;
   fn mapWriteAddressFromCPU(&self, addr: u16) -> Result<u16, String>;
   fn mapReadAddressFromPPU(&self, addr: u16) -> Result<u16, String>;
   fn mapWriteAddressFromPPU(&self, addr: u16) -> Result<u16, String>;
+}
+
+struct Mapper000 {
+  cpu_address_bounds: (u16, u16),
+  ppu_address_bounds: (u16, u16),
+  num_PRG_banks: u8,
+  num_CHR_banks: u8,
+}
+
+impl Mapper000 {
+  fn new(num_PRG_banks: u8, num_CHR_banks: u8) -> Mapper000 {
+    return Mapper000 {
+      cpu_address_bounds: (0x8000, 0xFFFF),
+      ppu_address_bounds: (0x0000, 0x1FFF),
+      num_PRG_banks,
+      num_CHR_banks
+    }
+  }
+}
+
+impl Mapper for Mapper000 {
+
+  fn in_cpu_address_bounds(&self, addr:u16) -> bool {
+    return addr >= self.cpu_address_bounds.0 && addr <= self.cpu_address_bounds.1;
+  }
+
+  fn in_ppu_address_bounds(&self, addr:u16) -> bool {
+    return addr >= self.ppu_address_bounds.0 && addr <= self.ppu_address_bounds.1;
+  }
+
+  fn mapReadAddressFromCPU(&self, addr: u16) -> Result<u16, String> {
+    if self.in_cpu_address_bounds(addr) {
+      // if PRGROM is 16KB (1 memory bank)
+      //     CPU Address Bus          PRG ROM
+      //     0x8000 -> 0xBFFF: Map    0x0000 -> 0x3FFF
+      //     0xC000 -> 0xFFFF: Mirror 0x0000 -> 0x3FFF
+      // if PRGROM is 32KB (2 memory banks)
+      //     CPU Address Bus          PRG ROM
+      //     0x8000 -> 0xFFFF: Map    0x0000 -> 0x7FFF
+      let mapped_addr = if self.num_PRG_banks > 1 { addr & 0x7FFF } else { addr & 0x3FFF};
+      return Ok(mapped_addr);
+    } else {
+      return Err(String::from("Mapper received a CPU read address outside of CPU bounds!"));
+    }
+  }
+
+  fn mapWriteAddressFromCPU(&self, addr: u16) -> Result<u16, String> {
+    if self.in_cpu_address_bounds(addr) {
+      let mapped_addr = if self.num_PRG_banks > 1 { addr & 0x7FFF } else { addr & 0x3FFF};
+      return Ok(mapped_addr);
+    } else {
+      return Err(String::from("Mapper received a CPU write address outside of CPU bounds!"));
+    }
+  }
+
+  fn mapReadAddressFromPPU(&self, addr: u16) -> Result<u16, String> {
+    if self.in_ppu_address_bounds(addr) {
+      return Ok(addr);
+    } else {
+      return Err(String::from("Mapper received a PPU read address outside of PPU bounds!"));
+    }
+  }
+
+  fn mapWriteAddressFromPPU(&self, addr: u16) -> Result<u16, String> {
+    if self.in_ppu_address_bounds(addr) {
+      return Ok(addr);
+    } else {
+      return Err(String::from("Mapper received a PPU write address outside of PPU bounds!"));
+    }
+  }
 }
 
 /*
