@@ -39,6 +39,10 @@
 - Ram
 	- 65kb byte array
 
+### Potential problems in original code
+
+- [SOLVED] The Stack Pointer variable is a u8 initialized at 0. When we decrease the SP, it becomes a -1, but it's an unsigned int, so we should see what exactly is happening when we add it to the stack start address.
+ 	-> When the cpu is reset, the stack pointer is increased to a higher value; it should never become 0 or negative. In any case, rust detected the problem at compilation time with overflow protection; god bless this language :)
 
 ## Phase 1.5: Ordering code
 The current code was written in one single file because I couldn't be bothered to figure out Rust's import system before I started work on the emulator. We should divide the code into files and place it into one or multiple modules that make sense.
@@ -64,13 +68,7 @@ Once we have this program, we can test using the following:
 - https://www.masswerk.at/6502/assembler.html to create custom testing code
 - https://www.nesdev.org/wiki/Emulator_tests to run more advanced tests once we have basic functionality going
 
-
-# Potential problems in original code
-
-- [SOLVED] The Stack Pointer variable is a u8 initialized at 0. When we decrease the SP, it becomes a -1, but it's an unsigned int, so we should see what exactly is happening when we add it to the stack start address.
- 	-> When the cpu is reset, the stack pointer is increased to a higher value; it should never become 0 or negative. In any case, rust detected the problem at compilation time with overflow protection; god bless this language :)
-
-# Phase 3: Bus expansion, adding PPU
+# Phase 3: Bus expansion, adding PPU [COMPLETE]
 
 - Modify RAM class to have address range 0-0x1FFF with mirroring over 0x07FF
 
@@ -78,7 +76,7 @@ Once we have this program, we can test using the following:
 	- Includes its own bus that it can read and write to and from, with the following connected devices:
 		- VRAM -> 2 name tables, each 1024 bytes
 		- Palette ram with 32 bytes
-	- Includes a reference to the main bus to read/write to/from cartridge? Maybe just a cartridge object that can be passed on init
+	- Includes a reference to the main bus to read/write to/from cartridge? Maybe just a cartridge object that can be passed on init -> We decided to use a reference, hopefully Rust doesn't bite us for that :-)
 	- Address range: 0x2000 - 0x3FFF with mirroring over 0x0007
 	- read() and write() function will take the address and returns/modify data as follows:
 		- 0x1 = Control
@@ -92,7 +90,7 @@ Once we have this program, we can test using the following:
 	- Include 256x240 pixel screen buffer
 	- Include name table visualization buffers (Two name tables)
 	- Include pattern table visualization buffers (Two pattern tables)
-	- Scanline, cycle and frame_complete variables
+	- Scanline, cycle and frame_render_complete variables
 	- clock() function which:
 		- sets pixel value of pixel screen buffer at cycle and scan_line position using color from color palette.
 		- increases the `cycle` variable 
@@ -136,9 +134,12 @@ Once we have this program, we can test using the following:
 		- Use the mapper to remap the address
 		- Read/write the data (CPU to PRG, PPu to CHR)
 
-- Method on the bus that loads a cartridge
-- We should run the ppu.clock() function three times as often as the cpu.clock() function
+### Potential problems in code
 
-# Phase 4: Adding screen, name table and pattern table visualization to emulator
-- Use Canvas widget with Quad primitives to draw pixels
-- Add function that calls main clock() function until PPU has completed drawing frame and then sets the boolean to false again
+- When we load a `.nes` file in the `create_cartridge_from_ines_file()` function, we might not be reading all the CHR and PRG data, due to inclusive/exclusive indexing (might not be reading the first byte of the CHR data, for example).
+
+# Phase 4: Creating emulator struct, adding screen, name table and pattern table visualization to emulator
+- [PENDING] Struct that will contain the CPU, PPU, Bus, and Cartridge
+- [PENDING] We should run the ppu.clock() function three times as often as the cpu.clock() function
+- [PENDING] Use Canvas widget with Quad primitives to draw pixels
+- [PENDING] Add function that calls main clock() function until PPU has completed drawing frame and then sets the boolean to false again
