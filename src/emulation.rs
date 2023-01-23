@@ -1426,7 +1426,19 @@ impl Device for Cartridge {
   }
 
   fn write(&mut self, addr: u16, content: u8) -> Result<(), String> {
-    return Err(String::from("Tried to write to Cartridge! Read up on the definition of ROM, genius."));
+    if self.in_cpu_memory_bounds(addr) {
+      // Write operation from CPU
+      let mapped_addr = self.mapper.mapWriteAddressFromCPU(addr).unwrap();
+      self.PRG_data[mapped_addr as usize] = content;
+      return Ok(());
+    } else if self.in_ppu_memory_bounds(addr) {
+      // Write operation from PPU
+      let mapped_addr = self.mapper.mapWriteAddressFromPPU(addr).unwrap();
+      self.CHR_data[mapped_addr as usize] = content;
+      return Ok(());
+    } else {
+      return Err(String::from("Tried to read outside Cartridge bounds!"));
+    }
   }
 
   fn read(&self, addr: u16) -> Result<u8, String> {
