@@ -20,8 +20,8 @@ File: ram64k.rs
 
 */
 pub struct Ram64K {
-  memory: [u8; 64 * 1024],
-  memory_bounds: (u16, u16)
+  pub memory: [u8; 64 * 1024],
+  pub memory_bounds: (u16, u16)
 }
 
 impl Device for Ram64K {
@@ -1134,10 +1134,10 @@ struct PPUStatus {
   ppu_data: u8
 }
 
-pub struct Ben2C02<'a> {
+pub struct Ben2C02 {
   memory_bounds: (u16, u16),
 
-  cartridge: &'a Cartridge,
+  cartridge: Arc<Mutex<Box<dyn Device>>>,
 
   scan_line: i16,
   cycle: i16,
@@ -1155,8 +1155,8 @@ pub struct Ben2C02<'a> {
   pattern_tables_vis_buffer: [[[graphics::Color; 128]; 128]; 2],
 }
 
-impl Ben2C02<'_> {
-  fn new(cartridge: &Cartridge) -> Ben2C02 {
+impl <'a> Ben2C02 {
+  pub fn new(cartridge: Arc<Mutex<Box<dyn Device>>>) -> Ben2C02 {
     return Ben2C02 {
       memory_bounds: (0x2000, 0x3FFF),
       cartridge: cartridge,
@@ -1189,7 +1189,7 @@ impl Ben2C02<'_> {
   }
 }
 
-impl Device for Ben2C02<'_> {
+impl <'a> Device for Ben2C02 {
 
   fn in_memory_bounds(&self, addr: u16)-> bool {
     if addr >= self.memory_bounds.0 && addr <= self.memory_bounds.1 {
@@ -1363,7 +1363,7 @@ cartridge.rs
 
 */
 
-use std::fs;
+use std::{fs, rc::Rc, sync::{Mutex, Arc}};
 
 fn verify_nes_header (file_contents: &Vec<u8>) -> bool{
   return file_contents[0] == ('N' as u8) &&
@@ -1397,7 +1397,7 @@ fn create_mapper_from_number(mapper_num: u8, num_prg_banks: u8, num_chr_banks: u
   }
 }
 
-fn create_cartridge_from_ines_file(file_path: &str) -> Result<Cartridge, String> {
+pub fn create_cartridge_from_ines_file(file_path: &str) -> Result<Cartridge, String> {
   let file_contents = fs::read(file_path).unwrap();
   if !verify_nes_header(&file_contents){
     return Err(String::from("Error while loading ROM file: invalid NES header."));
@@ -1561,21 +1561,22 @@ File: bus.rs
 
 */
 pub struct Bus16Bit {
-  devices: Vec<Box<dyn Device>>
+  pub devices: Vec<Arc<Mutex<Box<dyn Device>>>>
 }
 
 // Assumed to be a 16-bit bus
 impl Bus16Bit {
 
   pub fn new() -> Bus16Bit {
-    let devices: Vec<Box<dyn Device>> = vec![Box::new(Ram64K{memory: [0; 64*1024], memory_bounds: (0x0000, 0xFFFF)})];
+    let devices: Vec<Arc<Mutex<Box<dyn Device>>>> = vec![Arc::new(Mutex::new(Box::new(Ram64K{memory: [0; 64*1024], memory_bounds: (0x0000, 0xFFFF)})))];
     return Bus16Bit {
       devices
     }
   }
 
   pub fn read(&self, addr: u16, readOnly: bool) -> Result<u8, String> {
-    for device in self.devices.iter() {
+    for device_mutex in self.devices.iter() {
+      let device = device_mutex.lock().unwrap();
       if device.in_memory_bounds(addr) {
         return device.read(addr);
       }
@@ -1596,7 +1597,8 @@ impl Bus16Bit {
   }
 
 	pub fn write(&mut self, addr: u16, content: u8) -> Result<(), String>{
-    for device in self.devices.iter_mut() {
+    for device_mutex in self.devices.iter_mut() {
+      let mut device = device_mutex.lock().unwrap();
       if device.in_memory_bounds(addr) {
         return device.write(addr, content);
       }

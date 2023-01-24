@@ -1,5 +1,9 @@
 mod emulation;
-use emulation::{ Bus16Bit, Ben6502, hex_utils};
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::{Mutex, Arc};
+
+use emulation::{ Bus16Bit, Ben6502, hex_utils, Ben2C02, Ram64K, Cartridge, Device};
 
 
 use iced::widget::{button, column, row, text};
@@ -8,6 +12,44 @@ use iced::{Alignment, Element, Sandbox, Settings};
 fn main() {
   CPUVisualizer::run(Settings::default());
 }
+
+
+struct RustNESs {
+  cpu: Ben6502,
+  current_cycle: u16
+}
+
+impl RustNESs {
+  fn new(rom_file_path: &str) -> RustNESs{
+
+    let mut cpu_bus = Bus16Bit::new();
+
+    cpu_bus.devices.push(Arc::new(Mutex::new(Box::new(Ram64K{memory: [0; 64*1024], memory_bounds: (0x0000, 0xFFFF)}))));
+    cpu_bus.devices.push(Arc::new(Mutex::new(Box::new(emulation::create_cartridge_from_ines_file(rom_file_path).unwrap()))));
+    cpu_bus.devices.push(Arc::new(Mutex::new(Box::new(Ben2C02::new(cpu_bus.devices[1].clone())))));
+
+    cpu_bus.write(emulation::PROGRAM_START_POINTER_ADDR, 0x00).unwrap();
+    cpu_bus.write(emulation::PROGRAM_START_POINTER_ADDR + 1, 0x80).unwrap();
+    
+    let cpu: Ben6502 = Ben6502::new(cpu_bus);
+    Self { 
+      cpu,
+      current_cycle: 0
+    }
+  }
+
+    
+}
+
+
+
+/*
+
+
+cpu-visualizer.rs
+
+
+*/
 
 struct CPUVisualizer {
   cpu: Ben6502
