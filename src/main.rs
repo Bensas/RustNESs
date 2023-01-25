@@ -12,6 +12,7 @@ use iced::{Alignment, Element, Sandbox, Settings, Renderer, event, Application, 
 use iced::keyboard::{self, KeyCode, Modifiers};
 
 use iced_native::Event;
+use iced_native::Length;
 
 
 fn main() {
@@ -149,7 +150,7 @@ impl Application for RustNESs {
           text(self.cpu.bus.get_memory_content_as_string(ram_start_addr, ram_end_addr)).size(20),
           text(format!("Stack contents (Addr 0x{:x} - 0x{:x}):", stack_start_addr, stack_end_addr)),
           text(self.cpu.bus.get_memory_content_as_string(stack_start_addr, stack_end_addr)).size(20)
-        ],
+        ].max_width(400),
 
         // StatusVisualizer
         column![

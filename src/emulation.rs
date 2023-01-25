@@ -1601,7 +1601,7 @@ impl Bus16Bit {
         return device.read(addr);
       }
     }
-    return Err(String::from("Error reading from memory bus (No device found in given address)."))
+    return Err(String::from(format!("Error reading from memory bus (No device found in given address: 0x{:x}).", addr)));
   }
 
   pub fn read_word_little_endian(&mut self, addr: u16, readOnly: bool) -> Result<u16, String> {
@@ -1612,7 +1612,7 @@ impl Bus16Bit {
       let result = ((high.unwrap() as u16) << 8) + (low.unwrap() as u16);
       return Ok(result);
     } else {
-      return Err(String::from("Error reading from memory bus (No device found in given address)."))
+      return Err(String::from(format!("Error reading word from memory bus (No device found in given address: 0x{:x}).", addr)));
     }
   }
 
