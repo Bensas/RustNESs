@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 iced = "0.7"
+iced_native = "0.8.0"

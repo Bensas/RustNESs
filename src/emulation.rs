@@ -1403,7 +1403,7 @@ pub fn create_cartridge_from_ines_file(file_path: &str) -> Result<Cartridge, Str
     return Err(String::from("Error while loading ROM file: invalid NES header."));
   }
 
-  let nes_name = &file_contents[0..3];
+  let nes_name = &file_contents[0..4];
   let prg_chunks = file_contents[4];
   let chr_chunks = file_contents[5];
   let flags6 = file_contents[6];
@@ -1439,13 +1439,15 @@ pub fn create_cartridge_from_ines_file(file_path: &str) -> Result<Cartridge, Str
     },
     1 => {
 
-      let prg_data_end_index= prg_data_start_index + (prg_chunks as usize) * 16385;
+      let prg_data_end_index= prg_data_start_index + (prg_chunks as usize) * 16384;
       for i in prg_data_start_index..prg_data_end_index {
         cartridge.PRG_data.push(file_contents[i as usize]);
       }
       
       let chr_data_start_index= prg_data_end_index;
       let chr_data_end_index= chr_data_start_index + (chr_chunks as usize) * 8192;
+
+      println!("{}, {}, {}, {}", prg_data_start_index, prg_data_end_index, chr_data_start_index, chr_data_end_index);
       
       for i in chr_data_start_index..chr_data_end_index {
         cartridge.CHR_data.push(file_contents[i as usize]);

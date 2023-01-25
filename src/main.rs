@@ -7,7 +7,12 @@ use emulation::{ Bus16Bit, Ben6502, hex_utils, Ben2C02, Ram64K, Cartridge, Devic
 
 
 use iced::widget::{button, column, row, text};
-use iced::{Alignment, Element, Sandbox, Settings, Renderer};
+use iced::{Alignment, Element, Sandbox, Settings, Renderer, event};
+
+use iced::keyboard::{self, KeyCode, Modifiers};
+
+use iced_native::Event;
+
 
 fn main() {
   RustNESs::run(Settings::default());
@@ -35,19 +40,20 @@ impl RustNESs {
 
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 enum EmulatorMessage {
   ResumeEmulation,
   PauseEmulation,
   NextCPUInstruction,
-  NextFrame
+  NextFrame,
+  EventOccurred(iced_native::Event),
 }
 
 impl Sandbox for RustNESs {
   type Message = EmulatorMessage;
 
   fn new() -> Self {
-    let rom_file_path = "test_roms/nestest.nes";
+    let rom_file_path = "src/test_roms/nestest.nes";
 
 
     let mut cpu_bus = Bus16Bit::new(rom_file_path);
@@ -97,6 +103,13 @@ impl Sandbox for RustNESs {
           }
           
         },
+        EmulatorMessage::EventOccurred(event) => {
+        if let Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Space, modifiers }) = event {
+              println!("Spacebar pressed!!");
+          } else {
+            // println!("Spacebar pressed!!");
+          }
+      }
     }
     
   }
