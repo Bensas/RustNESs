@@ -7,7 +7,7 @@ use emulation::{ Bus16Bit, Ben6502, hex_utils, Ben2C02, Ram64K, Cartridge, Devic
 
 
 use iced::widget::{button, column, row, text};
-use iced::{Alignment, Element, Sandbox, Settings, Renderer, event};
+use iced::{Alignment, Element, Sandbox, Settings, Renderer, event, Application, Subscription, executor, Theme, Command};
 
 use iced::keyboard::{self, KeyCode, Modifiers};
 
@@ -49,10 +49,15 @@ enum EmulatorMessage {
   EventOccurred(iced_native::Event),
 }
 
-impl Sandbox for RustNESs {
+impl Application for RustNESs {
   type Message = EmulatorMessage;
+  type Executor = executor::Default;
 
-  fn new() -> Self {
+  type Theme = Theme;
+  
+  type Flags = ();
+
+  fn new(flags: Self::Flags) -> (RustNESs, iced::Command<EmulatorMessage>) {
     let rom_file_path = "src/test_roms/nestest.nes";
 
 
@@ -62,18 +67,20 @@ impl Sandbox for RustNESs {
     cpu_bus.write(emulation::PROGRAM_START_POINTER_ADDR + 1, 0x80).unwrap();
     
     let cpu: Ben6502 = Ben6502::new(cpu_bus);
-    Self { 
-      cpu,
-      current_cycle: 0,
-      paused: true
-    }
+    return (Self { 
+              cpu,
+              current_cycle: 0,
+              paused: true
+            },
+            Command::none()
+    );
   }
 
   fn title(&self) -> String {
     return String::from("RustNESs NES Emulator of whimsy!");
   }
 
-  fn update(&mut self, message: Self::Message) {
+  fn update(&mut self, message: Self::Message) -> iced::Command<EmulatorMessage> {
     match message {
         EmulatorMessage::ResumeEmulation => {
           self.paused = false;
@@ -104,13 +111,15 @@ impl Sandbox for RustNESs {
           
         },
         EmulatorMessage::EventOccurred(event) => {
-        if let Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Space, modifiers }) = event {
+          if let Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Space, modifiers }) = event {
               println!("Spacebar pressed!!");
           } else {
             // println!("Spacebar pressed!!");
           }
       }
     }
+
+    Command::none()
     
   }
 
@@ -179,5 +188,9 @@ impl Sandbox for RustNESs {
     .padding(20)
     .align_items(Alignment::Center)
     .into()
+  }
+
+  fn subscription(&self) -> Subscription<EmulatorMessage> {
+    iced_native::subscription::events().map(EmulatorMessage::EventOccurred)
   }
 }

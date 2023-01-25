@@ -1446,8 +1446,6 @@ pub fn create_cartridge_from_ines_file(file_path: &str) -> Result<Cartridge, Str
       
       let chr_data_start_index= prg_data_end_index;
       let chr_data_end_index= chr_data_start_index + (chr_chunks as usize) * 8192;
-
-      println!("{}, {}, {}, {}", prg_data_start_index, prg_data_end_index, chr_data_start_index, chr_data_end_index);
       
       for i in chr_data_start_index..chr_data_end_index {
         cartridge.CHR_data.push(file_contents[i as usize]);

@@ -136,7 +136,7 @@ Once we have this program, we can test using the following:
 
 ### Potential problems in code
 
-- When we load a `.nes` file in the `create_cartridge_from_ines_file()` function, we might not be reading all the CHR and PRG data, due to inclusive/exclusive indexing (might not be reading the first byte of the CHR data, for example).
+- [SOLVED] When we load a `.nes` file in the `create_cartridge_from_ines_file()` function, we might not be reading all the CHR and PRG data, due to inclusive/exclusive indexing (might not be reading the first byte of the CHR data, for example).
 
 # Phase 4: Creating emulator struct, adding screen, name table and pattern table visualization to emulator
 - [PENDING] Struct that will contain the CPU, PPU, Bus, and Cartridge
