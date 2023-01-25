@@ -30,6 +30,7 @@ impl RustNESs {
       let mut ppu_mutex_guard = ppu_mutex.lock().unwrap();
       ppu_mutex_guard.clock_cycle();
     }
+    self.current_cycle += 1;
   }
 
 }
@@ -75,16 +76,25 @@ impl Sandbox for RustNESs {
           self.paused = true;
         },
         EmulatorMessage::NextCPUInstruction => {
-          self.cpu.clock_cycle();
+          self.clock_cycle();
           while (self.cpu.current_instruction_remaining_cycles > 0){
-            self.cpu.clock_cycle();
+            self.clock_cycle();
           }
-          // CPU clock runs slower than system clock, so it may be
-          // complete for additional system clock cycles. Drain
-          // those out
-          // do { nes.clock(); } while (nes.cpu.complete());
+
+          // TODO: verify that this is how the cycles should be executed
+          self.clock_cycle();
+          while (self.cpu.current_instruction_remaining_cycles == 0) {
+            self.clock_cycle();
+          }
+          
         },
         EmulatorMessage::NextFrame => {
+          self.clock_cycle();
+          let ppu_mutex = self.cpu.bus.get_PPU();
+          let ppu_mutex_guard = ppu_mutex.lock().unwrap();
+          while (!ppu_mutex_guard.frame_render_complete){
+            self.clock_cycle();
+          }
           
         },
     }

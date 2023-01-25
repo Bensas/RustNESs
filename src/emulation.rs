@@ -1141,7 +1141,7 @@ pub struct Ben2C02 {
 
   scan_line: i16,
   cycle: i16,
-  frame_render_complete: bool,
+  pub frame_render_complete: bool,
 
   palette: [u8; 32],
   name_tables: [[u8; 1024]; 2],
@@ -1155,7 +1155,7 @@ pub struct Ben2C02 {
   pattern_tables_vis_buffer: [[[graphics::Color; 128]; 128]; 2],
 }
 
-impl <'a> Ben2C02 {
+impl Ben2C02 {
   pub fn new(cartridge: Arc<Mutex<dyn Device>>) -> Ben2C02 {
     return Ben2C02 {
       memory_bounds: (0x2000, 0x3FFF),
@@ -1189,7 +1189,7 @@ impl <'a> Ben2C02 {
   }
 }
 
-impl <'a> Device for Ben2C02 {
+impl Device for Ben2C02 {
 
   fn in_memory_bounds(&self, addr: u16)-> bool {
     if addr >= self.memory_bounds.0 && addr <= self.memory_bounds.1 {
