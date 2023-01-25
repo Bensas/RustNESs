@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Mutex, Arc};
 
-use emulation::{ Bus16Bit, Ben6502, hex_utils, Ben2C02, Ram64K, Cartridge, Device};
+use emulation::{ Bus16Bit, Ben6502, hex_utils, Ben2C02, Ram2K, Cartridge, Device};
 
 
 use iced::widget::{button, column, row, text};
@@ -112,7 +112,8 @@ impl Application for RustNESs {
         },
         EmulatorMessage::EventOccurred(event) => {
           if let Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Space, modifiers }) = event {
-              println!("Spacebar pressed!!");
+              println!("Spacebar pressed!");
+              self.update(EmulatorMessage::NextCPUInstruction);
           } else {
             // println!("Spacebar pressed!!");
           }

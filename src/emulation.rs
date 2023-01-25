@@ -15,16 +15,27 @@ pub trait Device {
 /*
 
 
-File: ram64k.rs
+File: ram2k.rs
 
 
 */
-pub struct Ram64K {
-  pub memory: [u8; 64 * 1024],
+
+const RAM_SIZE: u16 = 2 * 1024;
+pub struct Ram2K {
+  pub memory: [u8; RAM_SIZE as usize],
   pub memory_bounds: (u16, u16)
 }
 
-impl Device for Ram64K {
+impl Ram2K {
+  fn new(memory_bounds: (u16, u16)) -> Ram2K {
+    return Ram2K {
+      memory: [0; 2* 1024],
+      memory_bounds
+    }
+  }
+}
+
+impl Device for Ram2K {
 
   fn in_memory_bounds(&self, addr: u16)-> bool {
     if addr >= self.memory_bounds.0 && addr <= self.memory_bounds.1 {
@@ -36,7 +47,7 @@ impl Device for Ram64K {
 
   fn write(&mut self, addr: u16, content: u8) -> Result<(), String> {
     if self.in_memory_bounds(addr) {
-      self.memory[addr as usize] = content;
+      self.memory[(addr & RAM_SIZE) as usize] = content;
       return Ok(());
     } else {
       return Err(String::from("Tried to write outside RAM bounds!"));
@@ -45,7 +56,7 @@ impl Device for Ram64K {
 
   fn read(&self, addr: u16) -> Result<u8, String> {
     if self.in_memory_bounds(addr) {
-      return Ok(self.memory[addr as usize]);
+      return Ok(self.memory[(addr & RAM_SIZE) as usize]);
     } else {
       return Err(String::from("Tried to read outside RAM bounds!"));
     }
@@ -1510,7 +1521,7 @@ impl Cartridge {
 impl Device for Cartridge {
 
   fn in_memory_bounds(&self, addr: u16)-> bool {
-    if self.in_cpu_memory_bounds(addr) || self.in_ppu_memory_bounds(addr) {
+    if self.in_cpu_memory_bounds(addr) {
       return true;
     } else {
       return false;
@@ -1569,11 +1580,14 @@ pub struct Bus16Bit {
 impl Bus16Bit {
 
   pub fn new(rom_file_path: &str) -> Bus16Bit {
+    let ram = Arc::new(Mutex::new(Ram2K::new((0x0000, 0x1FFF))));
+    let cartridge = Arc::new(Mutex::new(create_cartridge_from_ines_file(rom_file_path).unwrap()));
+    let PPU = Arc::new(Mutex::new(Ben2C02::new(cartridge.clone())));
+
     let mut devices: Vec<Arc<Mutex<dyn Device>>> = vec![];
-    devices.push(Arc::new(Mutex::new(Ram64K{memory: [0; 64*1024], memory_bounds: (0x0000, 0xFFFF)})));
-    devices.push(Arc::new(Mutex::new(create_cartridge_from_ines_file(rom_file_path).unwrap())));
-    let PPU = Arc::new(Mutex::new(Ben2C02::new(devices[1].clone())));
+    devices.push(ram.clone());
     devices.push(PPU.clone());
+    devices.push(cartridge.clone());
     return Bus16Bit {
       devices,
       PPU
