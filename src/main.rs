@@ -7,26 +7,47 @@ use emulation::{ Bus16Bit, Ben6502, hex_utils, Ben2C02, Ram64K, Cartridge, Devic
 
 
 use iced::widget::{button, column, row, text};
-use iced::{Alignment, Element, Sandbox, Settings};
+use iced::{Alignment, Element, Sandbox, Settings, Renderer};
 
 fn main() {
-  CPUVisualizer::run(Settings::default());
+  RustNESs::run(Settings::default());
 }
 
 
 struct RustNESs {
   cpu: Ben6502,
-  current_cycle: u16
+  current_cycle: u16,
+
+  paused: bool,
 }
 
 impl RustNESs {
-  fn new(rom_file_path: &str) -> RustNESs{
 
-    let mut cpu_bus = Bus16Bit::new();
+  fn clock_cycle(&mut self) {
+    self.cpu.clock_cycle();
+    if self.current_cycle % 3 == 0 {
+      // self.cpu.bus.get_PPU()
+    }
+  }
 
-    cpu_bus.devices.push(Arc::new(Mutex::new(Box::new(Ram64K{memory: [0; 64*1024], memory_bounds: (0x0000, 0xFFFF)}))));
-    cpu_bus.devices.push(Arc::new(Mutex::new(Box::new(emulation::create_cartridge_from_ines_file(rom_file_path).unwrap()))));
-    cpu_bus.devices.push(Arc::new(Mutex::new(Box::new(Ben2C02::new(cpu_bus.devices[1].clone())))));
+}
+
+#[derive(Debug, Clone, Copy)]
+enum EmulatorMessage {
+  ResumeEmulation,
+  PauseEmulation,
+  NextCPUInstruction,
+  NextFrame
+}
+
+impl Sandbox for RustNESs {
+  type Message = EmulatorMessage;
+
+  fn new() -> Self {
+    let rom_file_path = "test_roms/nestest.nes";
+
+
+    let mut cpu_bus = Bus16Bit::new(rom_file_path);
 
     cpu_bus.write(emulation::PROGRAM_START_POINTER_ADDR, 0x00).unwrap();
     cpu_bus.write(emulation::PROGRAM_START_POINTER_ADDR + 1, 0x80).unwrap();
@@ -34,127 +55,104 @@ impl RustNESs {
     let cpu: Ben6502 = Ben6502::new(cpu_bus);
     Self { 
       cpu,
-      current_cycle: 0
-    }
-  }
-
-    
-}
-
-
-
-/*
-
-
-cpu-visualizer.rs
-
-
-*/
-
-struct CPUVisualizer {
-  cpu: Ben6502
-}
-
-impl CPUVisualizer {
-  fn load_program_to_ram(&mut self, program_str: &str, start_addr: u16) {
-    let hex_strings = program_str.split(" ");
-
-    let mut curr_addr = start_addr;
-    for hex_str in hex_strings.into_iter() {
-      let value: u8 = u8::from_str_radix(hex_str, 16).unwrap();
-      self.cpu.bus.write(curr_addr, value).unwrap();
-      curr_addr += 1;
-    }
-  }
-}
-
-#[derive(Debug, Clone, Copy)]
-enum Message {
-  NextInstruction,
-  LoadProgram
-}
-
-impl Sandbox for CPUVisualizer {
-  type Message = Message;
-
-  fn new() -> Self {
-    let mut mem_bus = Bus16Bit::new();
-    mem_bus.write(emulation::PROGRAM_START_POINTER_ADDR, 0x00).unwrap();
-    mem_bus.write(emulation::PROGRAM_START_POINTER_ADDR + 1, 0x80).unwrap();
-    let cpu: Ben6502 = Ben6502::new(mem_bus);
-    Self { 
-      cpu: cpu
+      current_cycle: 0,
+      paused: true
     }
   }
 
   fn title(&self) -> String {
-      String::from("6502 Emulation :)")
+    return String::from("RustNESs NES Emulator of whimsy!");
   }
 
-  fn update(&mut self, message: Message) {
-      match message {
-          Message::NextInstruction => {
-              self.cpu.clock_cycle();
-          },
-          Message::LoadProgram => {
-            self.load_program_to_ram("A2 0A 8E 00 00 A2 03 8E 01 00 AC 00 00 A9 00 18 6D 01 00 88 D0 FA 8D 02 00 EA EA EA", 0x8000);
-        }
-      }
+  fn update(&mut self, message: Self::Message) {
+    match message {
+        EmulatorMessage::ResumeEmulation => {
+          self.paused = false;
+        },
+        EmulatorMessage::PauseEmulation => {
+          self.paused = true;
+        },
+        EmulatorMessage::NextCPUInstruction => {
+          self.cpu.clock_cycle();
+          while (self.cpu.current_instruction_remaining_cycles > 0){
+            self.cpu.clock_cycle();
+          }
+          // CPU clock runs slower than system clock, so it may be
+          // complete for additional system clock cycles. Drain
+          // those out
+          // do { nes.clock(); } while (nes.cpu.complete());
+        },
+        EmulatorMessage::NextFrame => {
+          
+        },
+    }
+    
   }
 
-  fn view(&self) -> Element<Message> {
+  fn view(&self) -> Element<'_, Self::Message> {
     let ram_start_addr = 0x8000;
     let ram_end_addr = 0x8010;
 
     let stack_start_addr = 0x100 + emulation::SP_RESET_ADDR as u16 - 100;
     let stack_end_addr = 0x100 + emulation::SP_RESET_ADDR as u16;
-      column![
+
+
+    column![
+      // Contains screen visualizer and PPU buffer visualizers
+      row![
+
+      ],
+
+      // Contains Memory visualizer and CPU+PPU status visualizers  
+      row![
+
+        // MemoryVisualizer
+        column![
           text(format!("RAM contents (Addr 0x{:x} - 0x{:x}):", 0x00, 0x50)),
           text(self.cpu.bus.get_memory_content_as_string(0x00, 0x50)).size(20),
           text(format!("RAM contents (Addr 0x{:x} - 0x{:x}):", ram_start_addr, ram_end_addr)),
           text(self.cpu.bus.get_memory_content_as_string(ram_start_addr, ram_end_addr)).size(20),
           text(format!("Stack contents (Addr 0x{:x} - 0x{:x}):", stack_start_addr, stack_end_addr)),
-          text(self.cpu.bus.get_memory_content_as_string(stack_start_addr, stack_end_addr)).size(20),
-          button("Next Clock Cycle").on_press(Message::NextInstruction),
-          button("Load Program").on_press(Message::LoadProgram),
+          text(self.cpu.bus.get_memory_content_as_string(stack_start_addr, stack_end_addr)).size(20)
+        ],
+
+        // StatusVisualizer
+        column![
           row![
-            column![
-              text("Cpu registers:").size(20),
-              text("A: "),
-              text(self.cpu.registers.a.to_string()),
-              text("X: "),
-              text(self.cpu.registers.x.to_string()),
-              text("Y: "),
-              text(self.cpu.registers.y.to_string()),
-              text("PC(hex): "),
-              text(hex_utils::decimal_word_to_hex_str(self.cpu.registers.pc)),
-              text("SP(hex): "),
-              text(hex_utils::decimal_byte_to_hex_str(self.cpu.registers.sp))
-            ],
-            column![
-              text("Cpu flags:").size(20),
-              text("Carry: "),
-              text(self.cpu.status.get_carry().to_string()),
-              text("Zero: "),
-              text(self.cpu.status.get_zero().to_string()),
-              text("Negative: "),
-              text(self.cpu.status.get_negative().to_string()),
-              text("overflow: "),
-              text(self.cpu.status.get_overflow().to_string()),
-              text("Decimal mode: "),
-              text(self.cpu.status.get_decimal_mode().to_string()),
-              text("BRK command: "),
-              text(self.cpu.status.get_brk_command().to_string()),
-              text("IRQ Disable: "),
-              text(self.cpu.status.get_irq_disable().to_string())
-            ],
-            column![
-              text(format!("Remaining cycles in curr instruction: {}", self.cpu.current_instruction_remaining_cycles)).size(15),
-            ]
-          ]
+            text("Cpu registers:").size(20),
+            text("A: "),
+            text(self.cpu.registers.a.to_string()),
+            text("X: "),
+            text(self.cpu.registers.x.to_string()),
+            text("Y: "),
+            text(self.cpu.registers.y.to_string()),
+            text("PC(hex): "),
+            text(hex_utils::decimal_word_to_hex_str(self.cpu.registers.pc)),
+            text("SP(hex): "),
+            text(hex_utils::decimal_byte_to_hex_str(self.cpu.registers.sp))
+          ],
+          row![
+            text("Cpu flags:").size(20),
+            text("Carry: "),
+            text(self.cpu.status.get_carry().to_string()),
+            text("Zero: "),
+            text(self.cpu.status.get_zero().to_string()),
+            text("Negative: "),
+            text(self.cpu.status.get_negative().to_string()),
+            text("overflow: "),
+            text(self.cpu.status.get_overflow().to_string()),
+            text("Decimal mode: "),
+            text(self.cpu.status.get_decimal_mode().to_string()),
+            text("BRK command: "),
+            text(self.cpu.status.get_brk_command().to_string()),
+            text("IRQ Disable: "),
+            text(self.cpu.status.get_irq_disable().to_string())
+          ],
+        ]
       ]
-      .padding(20)
-      .align_items(Alignment::Center)
-      .into()
+    ]
+    .padding(20)
+    .align_items(Alignment::Center)
+    .into()
   }
 }
