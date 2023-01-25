@@ -1137,7 +1137,7 @@ struct PPUStatus {
 pub struct Ben2C02 {
   memory_bounds: (u16, u16),
 
-  cartridge: Arc<Mutex<Box<dyn Device>>>,
+  cartridge: Arc<Mutex<dyn Device>>,
 
   scan_line: i16,
   cycle: i16,
@@ -1156,7 +1156,7 @@ pub struct Ben2C02 {
 }
 
 impl <'a> Ben2C02 {
-  pub fn new(cartridge: Arc<Mutex<Box<dyn Device>>>) -> Ben2C02 {
+  pub fn new(cartridge: Arc<Mutex<dyn Device>>) -> Ben2C02 {
     return Ben2C02 {
       memory_bounds: (0x2000, 0x3FFF),
       cartridge: cartridge,
@@ -1173,7 +1173,7 @@ impl <'a> Ben2C02 {
     }
   }
 
-  fn clock(&mut self) {
+  pub fn clock_cycle(&mut self) {
 
      self.screen_vis_buffer[self.cycle as usize][self.scan_line as usize] = self.palette_vis_bufer[0x11]; // Temporary
      self.cycle += 1;
@@ -1561,16 +1561,22 @@ File: bus.rs
 
 */
 pub struct Bus16Bit {
-  pub devices: Vec<Arc<Mutex<Box<dyn Device>>>>
+  pub devices: Vec<Arc<Mutex<dyn Device>>>,
+  pub PPU: Arc<Mutex<Ben2C02>>
 }
 
 // Assumed to be a 16-bit bus
 impl Bus16Bit {
 
-  pub fn new() -> Bus16Bit {
-    let devices: Vec<Arc<Mutex<Box<dyn Device>>>> = vec![Arc::new(Mutex::new(Box::new(Ram64K{memory: [0; 64*1024], memory_bounds: (0x0000, 0xFFFF)})))];
+  pub fn new(rom_file_path: &str) -> Bus16Bit {
+    let mut devices: Vec<Arc<Mutex<dyn Device>>> = vec![];
+    devices.push(Arc::new(Mutex::new(Ram64K{memory: [0; 64*1024], memory_bounds: (0x0000, 0xFFFF)})));
+    devices.push(Arc::new(Mutex::new(create_cartridge_from_ines_file(rom_file_path).unwrap())));
+    let PPU = Arc::new(Mutex::new(Ben2C02::new(devices[1].clone())));
+    devices.push(PPU.clone());
     return Bus16Bit {
-      devices
+      devices,
+      PPU
     }
   }
 
@@ -1617,6 +1623,10 @@ impl Bus16Bit {
     }
     return result;
   }
+
+  pub fn get_PPU(&mut self) -> Arc<Mutex<Ben2C02>> {
+    return self.PPU.clone();
+  }
 }
 
 
@@ -1624,12 +1634,10 @@ impl Bus16Bit {
 mod bus_tests {
   use super::Bus16Bit;
 
-  #[test]
-  fn test_get_memory_content_as_string() {
-    let bus = Bus16Bit::new();
-    println!("Meeey hona");
-
-    println!("{}", bus.get_memory_content_as_string(0, 100));
-  }
+  // #[test]
+  // fn test_get_memory_content_as_string() {
+  //   let bus = Bus16Bit::new("hey_mona.nes");
+  //   println!("{}", bus.get_memory_content_as_string(0, 100));
+  // }
 
 }

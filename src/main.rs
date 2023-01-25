@@ -26,7 +26,9 @@ impl RustNESs {
   fn clock_cycle(&mut self) {
     self.cpu.clock_cycle();
     if self.current_cycle % 3 == 0 {
-      // self.cpu.bus.get_PPU()
+      let ppu_mutex = self.cpu.bus.get_PPU();
+      let mut ppu_mutex_guard = ppu_mutex.lock().unwrap();
+      ppu_mutex_guard.clock_cycle();
     }
   }
 
