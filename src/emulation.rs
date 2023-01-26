@@ -289,6 +289,7 @@ enum AddressingMode {
   IND, // Indirect
 }
 
+#[derive(Debug)]
 enum Instruction {
   ADC,
   AND,
@@ -1050,6 +1051,71 @@ impl Ben6502 {
 
 }
 
+fn bytes_required_for_address(addressing_mode: &AddressingMode) -> u8 {
+  match (addressing_mode) {
+    AddressingMode::ACC => {
+      0
+    },
+    AddressingMode::IMM => {
+      1
+    },
+    AddressingMode::ABS => {
+      2
+    },
+    AddressingMode::ZP0 => {
+      1
+    },
+    AddressingMode::ZPX => {
+      1
+    },
+    AddressingMode::ZPY => {
+      1
+    },
+    AddressingMode::ABX => {
+      2
+    },
+    AddressingMode::ABY => {
+      2
+    },
+    AddressingMode::IMP => {
+      0
+    },
+    AddressingMode::REL => {
+      1
+    },
+    AddressingMode::INX => {
+      1
+    }
+    AddressingMode::INY => {
+      1
+    },
+    AddressingMode::IND => {
+      2
+    }
+  }
+}
+
+
+pub fn disassemble(program: Vec<u8>) -> String {
+  let mut result = String::new();
+  let mut i = 0;
+  while i < program.len() {
+    let instruction_opcode = *program.get(i).unwrap();
+    let instruction_data = &INSTRUCTION_TABLE[instruction_opcode as usize];
+    result.push_str(&format!("{:?}", instruction_data.instruction));
+
+    let operation_bytes = bytes_required_for_address(&instruction_data.addressing_mode) as usize;
+    for j in 0..operation_bytes {
+      if program.get(i+(j+1)).is_some() {
+        result.push_str(&format!(",{:02X}", program.get(i+(j+1)).unwrap()));
+      }
+    }
+    result.push_str(" - ");
+    i += 1 + operation_bytes;
+  }
+  return result;
+}
+
 
 /*
 
@@ -1634,6 +1700,15 @@ impl Bus16Bit {
       // print!("{}", memory_content);
       result.push_str(&hex_utils::decimal_byte_to_hex_str(memory_content));
       result.push_str(" ");
+    }
+    return result;
+  }
+
+  pub fn get_memory_content_as_vec(&self, start_addr: u16, end_addr: u16) -> Vec<u8> {
+    let mut result = vec![];
+    for curr_addr in start_addr..end_addr {
+      let memory_content = self.read(curr_addr, false).unwrap();
+      result.push(memory_content);
     }
     return result;
   }

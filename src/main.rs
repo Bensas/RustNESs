@@ -13,6 +13,7 @@ use iced::keyboard::{self, KeyCode, Modifiers};
 
 use iced_native::Event;
 use iced_native::Length;
+use iced_native::Color;
 
 
 fn main() {
@@ -169,10 +170,10 @@ impl Application for RustNESs {
           text(self.cpu.bus.get_memory_content_as_string(0x00, 0x50)).size(20),
           text(format!("RAM contents  at PC (Addr 0x{:x} - 0x{:x}):", self.mem_visualizer.ram_start_addr, self.mem_visualizer.ram_end_addr)),
           text(self.cpu.bus.get_memory_content_as_string(self.mem_visualizer.ram_start_addr, self.mem_visualizer.ram_end_addr)).size(20),
-          text(emulation::disassemble(self.cpu.bus.get_memory_content_as_string(self.mem_visualizer.ram_start_addr, self.mem_visualizer.ram_end_addr))).size(18),
+          text(emulation::disassemble(self.cpu.bus.get_memory_content_as_vec(self.mem_visualizer.ram_start_addr, self.mem_visualizer.ram_end_addr))).size(18).style(Color::from([0.0, 0.0, 1.0])),
           text(format!("Stack contents (Addr 0x{:x} - 0x{:x}):", self.mem_visualizer.stack_start_addr, self.mem_visualizer.stack_end_addr)),
           text(self.cpu.bus.get_memory_content_as_string(self.mem_visualizer.stack_start_addr, self.mem_visualizer.stack_end_addr)).size(20)
-        ].max_width(400),
+        ].max_width(500),
 
         // StatusVisualizer
         column![
