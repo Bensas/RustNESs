@@ -47,7 +47,7 @@
 ## Phase 1.5: Ordering code
 The current code was written in one single file because I couldn't be bothered to figure out Rust's import system before I started work on the emulator. We should divide the code into files and place it into one or multiple modules that make sense.
 
-# Phase 2: CPU Testing [Complete with sample code, not with ROM]
+# Phase 2: CPU Testing [COMPLETE with sample code, not with ROM]
 
 ## Action plan:
 We need a way to test the CPU. Functional requirements:
@@ -138,8 +138,11 @@ Once we have this program, we can test using the following:
 
 - [SOLVED] When we load a `.nes` file in the `create_cartridge_from_ines_file()` function, we might not be reading all the CHR and PRG data, due to inclusive/exclusive indexing (might not be reading the first byte of the CHR data, for example).
 
-# Phase 4: Creating emulator struct, adding screen, name table and pattern table visualization to emulator
+# Phase 4: Creating emulator struct, adding screen, name table and pattern table visualization to emulator [COMPLETE, without name_table or pattern_table visualization yet]
 - Struct that will contain the CPU, PPU, Bus, and Cartridge
 - We should run the ppu.clock() function three times as often as the cpu.clock() function
-- [PENDING] Use Canvas widget with Quad primitives to draw pixels
-- [PENDING] Add function that calls main clock() function until PPU has completed drawing frame and then sets the boolean to false again
+- Use Canvas widget with `fill_rectangle` to draw pixels
+- Add function that calls main clock() function until PPU has completed drawing frame and then sets the boolean to false again
+
+# Phase 5: PPU Land
+
