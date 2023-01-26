@@ -124,7 +124,7 @@ pub mod hex_utils {
   }
 }
 
-mod graphics {
+pub mod graphics {
   #[derive(Copy)]
   pub struct Color {
     red: u8,
@@ -135,6 +135,10 @@ mod graphics {
   impl Color {
     pub fn new(red: u8, green: u8, blue: u8) -> Color {
       return Color { red, green, blue };
+    }
+
+    pub fn to_iced_color(&self) -> iced::Color {
+      return iced::Color::new((self.red as f32) / 255.0, (self.green as f32) / 255.0, (self.blue as f32) / 255.0, 1.0);
     }
   }
 

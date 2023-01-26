@@ -7,7 +7,7 @@ use emulation::{ Bus16Bit, Ben6502, hex_utils, Ben2C02, Ram2K, Cartridge, Device
 
 
 use iced::widget::{button, column, row, text};
-use iced::{Alignment, Element, Sandbox, Settings, Renderer, event, Application, Subscription, executor, Theme, Command, Rectangle, time};
+use iced::{Alignment, Element, Sandbox, Settings, Renderer, event, Application, Subscription, executor, Theme, Command, Rectangle, time, Point, Size};
 
 use iced::keyboard::{self, KeyCode, Modifiers};
 
@@ -17,6 +17,10 @@ use iced_native::Color;
 
 use std::time::{Duration, Instant};
 
+use iced::widget::canvas;
+use iced::widget::canvas::{
+  Cache, Canvas, Cursor, Frame, Geometry, Path, Text,
+};
 
 
 fn main() {
@@ -43,6 +47,8 @@ impl MemoryVisualizer {
 
 
 const EMULATOR_CYCLES_PER_SECOND: u64 = 10;
+const SCREEN_PIXEL_HEIGHT: f32 = 10.0;
+const SCREEN_HEIGHT: u16 = 300;
 
 struct RustNESs {
   cpu: Ben6502,
@@ -51,6 +57,7 @@ struct RustNESs {
   paused: bool,
   cycles_per_second: u64,
 
+  ppu_screen_buffer_visualizer: PPUScreenBufferVisualizer,
   mem_visualizer: MemoryVisualizer
 }
 
@@ -100,6 +107,11 @@ impl Application for RustNESs {
               current_cycle: 0,
               paused: true,
               cycles_per_second: EMULATOR_CYCLES_PER_SECOND,
+              ppu_screen_buffer_visualizer: PPUScreenBufferVisualizer {
+                screen_vis_buffer: [[emulation::graphics::Color::new(0, 0, 0); 256]; 240],
+                canvas_cache: Cache::default(),
+                pixel_height: SCREEN_PIXEL_HEIGHT
+              },
               mem_visualizer: MemoryVisualizer {
                 ram_start_addr: 0x8000,
                 ram_end_addr: 0x8010,
@@ -165,6 +177,8 @@ impl Application for RustNESs {
     column![
       // Contains screen visualizer and PPU buffer visualizers
       row![
+
+      self.ppu_screen_buffer_visualizer.view(),
 
       ],
 
@@ -246,4 +260,54 @@ fn memory_visualizer<'a>(
   ]
   .max_width(500)
   .into()
+}
+
+
+struct PPUScreenBufferVisualizer {
+  screen_vis_buffer: [[emulation::graphics::Color; 256]; 240],
+  canvas_cache: Cache,
+  pixel_height: f32
+}
+
+impl PPUScreenBufferVisualizer {
+  pub fn view(&self) -> Element<EmulatorMessage> {
+    Canvas::new(self)
+        .width(Length::Units(SCREEN_HEIGHT))
+        .height(Length::Units(SCREEN_HEIGHT))
+        .into()
+  }
+}
+
+
+#[derive(Debug, Clone)]
+    pub enum Message {
+        Hello(u8)
+    }
+
+impl canvas::Program<EmulatorMessage> for PPUScreenBufferVisualizer {
+  type State = ();
+
+  fn draw(
+      &self,
+      _state: &Self::State,
+      _theme: &Theme,
+      bounds: Rectangle,
+      cursor: Cursor,
+  ) -> Vec<Geometry> {
+
+    let pixel_grid = self.canvas_cache.draw(bounds.size(), |frame| {
+      for i in 0..self.screen_vis_buffer.len() {
+        for j in 0..self.screen_vis_buffer[0].len() {
+          let pixel_color = self.screen_vis_buffer[i][j];
+
+          frame.fill_rectangle(
+              Point::new((i as f32) * self.pixel_height as f32, (j as f32) * self.pixel_height as f32),
+              Size::new(self.pixel_height, self.pixel_height),
+              pixel_color.to_iced_color(),
+          );
+        }
+      } 
+    });
+    vec![pixel_grid]
+  }
 }
