@@ -148,8 +148,8 @@ impl Application for RustNESs {
           }
       }
     }
-
     self.mem_visualizer.update(&self.cpu);
+    self.ppu_screen_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
     Command::none()
     
   }
@@ -265,9 +265,18 @@ impl PPUScreenBufferVisualizer {
         .into()
   }
 
-  // pub fn update_data(&mut self, ppu: &Ben2C02) {
-  //   self.screen_vis_buffer = &ppu.screen_vis_buffer;
-  // }
+  pub fn update_data(&mut self, ppu: &Ben2C02) {
+    // Every time we update, I'm copying the contents of the PPU buffer
+    // onto the buffer of the Screen Visualizer. This is awful, but I can't 
+    // figure out lifetimes well enough to directly reference the PPU buffer :/
+    // TODO: Reference PPU buffer directly
+    for i in 0..ppu.screen_vis_buffer.len() {
+      for j in 0..ppu.screen_vis_buffer[0].len() {
+        self.screen_vis_buffer[i][j] = ppu.screen_vis_buffer[i][j];
+      }
+    }
+    self.canvas_cache.clear();
+  }
 }
 
 
@@ -298,7 +307,7 @@ impl canvas::Program<EmulatorMessage> for PPUScreenBufferVisualizer {
               pixel_color.to_iced_color(),
           );
         }
-      } 
+      }
     });
     vec![pixel_grid]
   }
