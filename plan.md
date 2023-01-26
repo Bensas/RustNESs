@@ -139,7 +139,7 @@ Once we have this program, we can test using the following:
 - [SOLVED] When we load a `.nes` file in the `create_cartridge_from_ines_file()` function, we might not be reading all the CHR and PRG data, due to inclusive/exclusive indexing (might not be reading the first byte of the CHR data, for example).
 
 # Phase 4: Creating emulator struct, adding screen, name table and pattern table visualization to emulator
-- [PENDING] Struct that will contain the CPU, PPU, Bus, and Cartridge
-- [PENDING] We should run the ppu.clock() function three times as often as the cpu.clock() function
+- Struct that will contain the CPU, PPU, Bus, and Cartridge
+- We should run the ppu.clock() function three times as often as the cpu.clock() function
 - [PENDING] Use Canvas widget with Quad primitives to draw pixels
 - [PENDING] Add function that calls main clock() function until PPU has completed drawing frame and then sets the boolean to false again

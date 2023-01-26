@@ -7,13 +7,16 @@ use emulation::{ Bus16Bit, Ben6502, hex_utils, Ben2C02, Ram2K, Cartridge, Device
 
 
 use iced::widget::{button, column, row, text};
-use iced::{Alignment, Element, Sandbox, Settings, Renderer, event, Application, Subscription, executor, Theme, Command};
+use iced::{Alignment, Element, Sandbox, Settings, Renderer, event, Application, Subscription, executor, Theme, Command, Rectangle, time};
 
 use iced::keyboard::{self, KeyCode, Modifiers};
 
-use iced_native::Event;
+use iced_native::{Event, Program};
 use iced_native::Length;
 use iced_native::Color;
+
+use std::time::{Duration, Instant};
+
 
 
 fn main() {
@@ -39,11 +42,14 @@ impl MemoryVisualizer {
 }
 
 
+const EMULATOR_CYCLES_PER_SECOND: u64 = 10;
+
 struct RustNESs {
   cpu: Ben6502,
   current_cycle: u16,
 
   paused: bool,
+  cycles_per_second: u64,
 
   mem_visualizer: MemoryVisualizer
 }
@@ -93,6 +99,7 @@ impl Application for RustNESs {
               cpu,
               current_cycle: 0,
               paused: true,
+              cycles_per_second: EMULATOR_CYCLES_PER_SECOND,
               mem_visualizer: MemoryVisualizer {
                 ram_start_addr: 0x8000,
                 ram_end_addr: 0x8010,
@@ -165,15 +172,11 @@ impl Application for RustNESs {
       row![
 
         // MemoryVisualizer
-        column![
-          text(format!("RAM contents (Addr 0x{:x} - 0x{:x}):", 0x00, 0x50)),
-          text(self.cpu.bus.get_memory_content_as_string(0x00, 0x50)).size(20),
-          text(format!("RAM contents  at PC (Addr 0x{:x} - 0x{:x}):", self.mem_visualizer.ram_start_addr, self.mem_visualizer.ram_end_addr)),
-          text(self.cpu.bus.get_memory_content_as_string(self.mem_visualizer.ram_start_addr, self.mem_visualizer.ram_end_addr)).size(20),
-          text(emulation::disassemble(self.cpu.bus.get_memory_content_as_vec(self.mem_visualizer.ram_start_addr, self.mem_visualizer.ram_end_addr))).size(18).style(Color::from([0.0, 0.0, 1.0])),
-          text(format!("Stack contents (Addr 0x{:x} - 0x{:x}):", self.mem_visualizer.stack_start_addr, self.mem_visualizer.stack_end_addr)),
-          text(self.cpu.bus.get_memory_content_as_string(self.mem_visualizer.stack_start_addr, self.mem_visualizer.stack_end_addr)).size(20)
-        ].max_width(500),
+        memory_visualizer(self.mem_visualizer.ram_start_addr,
+                          self.mem_visualizer.ram_end_addr,
+                          self.mem_visualizer.stack_start_addr,
+                          self.mem_visualizer.stack_end_addr,
+                          &self.cpu.bus),
 
         // StatusVisualizer
         column![
@@ -217,5 +220,30 @@ impl Application for RustNESs {
 
   fn subscription(&self) -> Subscription<EmulatorMessage> {
     iced_native::subscription::events().map(EmulatorMessage::EventOccurred)
+    // if !self.paused {
+    //   return iced::time::every(time::Duration::from_millis(1000 / self.cycles_per_second)).map(EmulatorMessage::Tick);
+    // }
   }
+}
+
+
+fn memory_visualizer<'a>(
+  ram_start_addr: u16,
+  ram_end_addr: u16,
+  stack_start_addr: u16,
+  stack_end_addr: u16,
+  cpu_bus: &Bus16Bit,
+) -> Element<'a, EmulatorMessage> {
+
+  column![
+    text(format!("RAM contents (Addr 0x{:x} - 0x{:x}):", 0x00, 0x50)),
+    text(cpu_bus.get_memory_content_as_string(0x00, 0x50)).size(20),
+    text(format!("RAM contents  at PC (Addr 0x{:x} - 0x{:x}):", ram_start_addr, ram_end_addr)),
+    text(cpu_bus.get_memory_content_as_string(ram_start_addr, ram_end_addr)).size(20),
+    text(emulation::disassemble(cpu_bus.get_memory_content_as_vec(ram_start_addr, ram_end_addr))).size(18).style(Color::from([0.0, 0.0, 1.0])),
+    text(format!("Stack contents (Addr 0x{:x} - 0x{:x}):", stack_start_addr, stack_end_addr)),
+    text(cpu_bus.get_memory_content_as_string(stack_start_addr, stack_end_addr)).size(20)
+  ]
+  .max_width(500)
+  .into()
 }
