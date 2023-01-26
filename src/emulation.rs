@@ -1238,7 +1238,7 @@ pub struct Ben2C02 {
   
   // These arrays are used for emulator visualization, thus the higher level Color structure
   palette_vis_bufer: [graphics::Color; 64],
-  screen_vis_buffer: [[graphics::Color; 256]; 240],
+  pub screen_vis_buffer: [[graphics::Color; 256]; 240],
   name_tables_vis_buffer: [[[graphics::Color; 256]; 240]; 2],
   pattern_tables_vis_buffer: [[[graphics::Color; 128]; 128]; 2],
 }

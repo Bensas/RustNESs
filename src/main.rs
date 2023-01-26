@@ -27,25 +27,6 @@ fn main() {
   RustNESs::run(Settings::default());
 }
 
-
-struct MemoryVisualizer {
-  ram_start_addr: u16,
-  ram_end_addr: u16,
-  stack_start_addr: u16,
-  stack_end_addr: u16,
-}
-
-impl MemoryVisualizer {
-  fn update(&mut self, cpu: &Ben6502) {
-    self.ram_start_addr = cpu.registers.pc;
-    self.ram_end_addr = cpu.registers.pc + 16;
-
-    self.stack_start_addr = emulation::STACK_START_ADDR + cpu.registers.sp as u16 - 40;
-    self.stack_end_addr = emulation::STACK_START_ADDR + cpu.registers.sp as u16 + 1;
-  }
-}
-
-
 const EMULATOR_CYCLES_PER_SECOND: u64 = 10;
 const SCREEN_PIXEL_HEIGHT: f32 = 10.0;
 const SCREEN_HEIGHT: u16 = 300;
@@ -186,11 +167,7 @@ impl Application for RustNESs {
       row![
 
         // MemoryVisualizer
-        memory_visualizer(self.mem_visualizer.ram_start_addr,
-                          self.mem_visualizer.ram_end_addr,
-                          self.mem_visualizer.stack_start_addr,
-                          self.mem_visualizer.stack_end_addr,
-                          &self.cpu.bus),
+        self.mem_visualizer.view(&self.cpu.bus),
 
         // StatusVisualizer
         column![
@@ -241,25 +218,36 @@ impl Application for RustNESs {
 }
 
 
-fn memory_visualizer<'a>(
+struct MemoryVisualizer {
   ram_start_addr: u16,
   ram_end_addr: u16,
   stack_start_addr: u16,
   stack_end_addr: u16,
-  cpu_bus: &Bus16Bit,
-) -> Element<'a, EmulatorMessage> {
+}
 
-  column![
-    text(format!("RAM contents (Addr 0x{:x} - 0x{:x}):", 0x00, 0x50)),
-    text(cpu_bus.get_memory_content_as_string(0x00, 0x50)).size(20),
-    text(format!("RAM contents  at PC (Addr 0x{:x} - 0x{:x}):", ram_start_addr, ram_end_addr)),
-    text(cpu_bus.get_memory_content_as_string(ram_start_addr, ram_end_addr)).size(20),
-    text(emulation::disassemble(cpu_bus.get_memory_content_as_vec(ram_start_addr, ram_end_addr))).size(18).style(Color::from([0.0, 0.0, 1.0])),
-    text(format!("Stack contents (Addr 0x{:x} - 0x{:x}):", stack_start_addr, stack_end_addr)),
-    text(cpu_bus.get_memory_content_as_string(stack_start_addr, stack_end_addr)).size(20)
-  ]
-  .max_width(500)
-  .into()
+impl MemoryVisualizer {
+  fn update(&mut self, cpu: &Ben6502) {
+    self.ram_start_addr = cpu.registers.pc;
+    self.ram_end_addr = cpu.registers.pc + 16;
+
+    self.stack_start_addr = emulation::STACK_START_ADDR + cpu.registers.sp as u16 - 40;
+    self.stack_end_addr = emulation::STACK_START_ADDR + cpu.registers.sp as u16 + 1;
+  }
+
+  fn view<'a>(&self, cpu_bus: &Bus16Bit) -> Element<'a, EmulatorMessage> {
+  
+    column![
+      text(format!("RAM contents (Addr 0x{:x} - 0x{:x}):", 0x00, 0x50)),
+      text(cpu_bus.get_memory_content_as_string(0x00, 0x50)).size(20),
+      text(format!("RAM contents  at PC (Addr 0x{:x} - 0x{:x}):", self.ram_start_addr, self.ram_end_addr)),
+      text(cpu_bus.get_memory_content_as_string(self.ram_start_addr, self.ram_end_addr)).size(20),
+      text(emulation::disassemble(cpu_bus.get_memory_content_as_vec(self.ram_start_addr, self.ram_end_addr))).size(18).style(Color::from([0.0, 0.0, 1.0])),
+      text(format!("Stack contents (Addr 0x{:x} - 0x{:x}):", self.stack_start_addr, self.stack_end_addr)),
+      text(cpu_bus.get_memory_content_as_string(self.stack_start_addr, self.stack_end_addr)).size(20)
+    ]
+    .max_width(500)
+    .into()
+  }
 }
 
 
@@ -276,6 +264,10 @@ impl PPUScreenBufferVisualizer {
         .height(Length::Units(SCREEN_HEIGHT))
         .into()
   }
+
+  // pub fn update_data(&mut self, ppu: &Ben2C02) {
+  //   self.screen_vis_buffer = &ppu.screen_vis_buffer;
+  // }
 }
 
 
