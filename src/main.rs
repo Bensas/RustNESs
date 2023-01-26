@@ -1,7 +1,7 @@
 mod emulation;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::{Mutex, Arc};
+use std::sync::{Mutex, Arc, MutexGuard};
 
 use emulation::{ Bus16Bit, Ben6502, hex_utils, Ben2C02, Ram2K, Cartridge, Device};
 
@@ -33,7 +33,7 @@ const SCREEN_HEIGHT: u16 = 300;
 
 struct RustNESs {
   cpu: Ben6502,
-  current_cycle: u16,
+  current_cycle: u64,
 
   paused: bool,
   cycles_per_second: u64,
@@ -134,17 +134,36 @@ impl Application for RustNESs {
           self.clock_cycle();
           let ppu_mutex = self.cpu.bus.get_PPU();
           let ppu_mutex_guard = ppu_mutex.lock().unwrap();
-          while (!ppu_mutex_guard.frame_render_complete){
+          let mut frame_render_complete = ppu_mutex_guard.frame_render_complete;
+          drop(ppu_mutex_guard);
+          drop(ppu_mutex);
+          while (!frame_render_complete){
             self.clock_cycle();
+            let ppu_mutex = self.cpu.bus.get_PPU();
+            let ppu_mutex_guard = ppu_mutex.lock().unwrap();
+            frame_render_complete = ppu_mutex_guard.frame_render_complete;
+            drop(ppu_mutex_guard);
+            drop(ppu_mutex);
           }
-          
+          let ppu_mutex = self.cpu.bus.get_PPU();
+          let mut ppu_mutex_guard = ppu_mutex.lock().unwrap();
+          ppu_mutex_guard.frame_render_complete = false;
+          drop(ppu_mutex_guard);
+          drop(ppu_mutex);
         },
         EmulatorMessage::EventOccurred(event) => {
-          if let Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Space, modifiers }) = event {
+          match event {
+            Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Space, modifiers }) => {
               println!("Spacebar pressed!");
               self.update(EmulatorMessage::NextCPUInstruction);
-          } else {
-            // println!("Spacebar pressed!!");
+            },
+            Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::F, modifiers }) => {
+              println!("F(For next Frame) pressed!");
+              self.update(EmulatorMessage::NextFrame);
+            },
+            _ => {
+
+            }
           }
       }
     }

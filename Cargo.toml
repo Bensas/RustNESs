@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 iced = { version = "0.7", features = ["canvas"] }
 iced_native = "0.8.0"
+rand = "0.8.5"

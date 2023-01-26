@@ -1136,6 +1136,8 @@ File: Ben2C02.rs
 
 */
 
+use rand::Rng;
+
 fn create_palette_vis_buffer() -> [graphics::Color; 64]{
   let mut buffer= [graphics::Color::new(0, 0, 0);64];
 
@@ -1263,16 +1265,17 @@ impl Ben2C02 {
 
   pub fn clock_cycle(&mut self) {
 
-     self.screen_vis_buffer[self.cycle as usize][self.scan_line as usize] = self.palette_vis_bufer[0x11]; // Temporary
-     self.cycle += 1;
-     if self.cycle > 340 {
+    let mut rng = rand::thread_rng();
+    self.screen_vis_buffer[self.cycle as usize][self.scan_line as usize] = self.palette_vis_bufer[rng.gen_range(0..(self.palette_vis_bufer.len()-1))]; // Temporary
+    self.cycle += 1;
+    if self.cycle >= 240 {
       self.cycle = 0;
       self.scan_line += 1;
-      if (self.scan_line > 260) {
-        self.scan_line = -1;
+      if (self.scan_line >= 256) {
+        self.scan_line = 0;
         self.frame_render_complete = true;
       }
-     }
+    }
 
   }
 }
