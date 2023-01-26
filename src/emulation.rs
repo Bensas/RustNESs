@@ -74,7 +74,7 @@ File: utils.rs
 
 mod bitwise_utils {
   pub fn get_bit(source: u8, bit_pos: u8) -> u8{ // bit_pos counted from least significant to most significant
-    return source & (1 << bit_pos);
+    return (source & (1 << bit_pos) != 0) as u8;
   }
 
   pub fn set_bit(target: &mut u8, bit_pos: u8, new_value: u8) {
@@ -399,6 +399,13 @@ pub struct Ben6502 {
   needs_additional_cycle: bool,
   // fetched_data: u8,
   absolute_mem_address: u16,
+
+  /*
+  Regarding relative addresses:
+   - They will be represented using 2's Complement
+   - In a branch instruction, they are the address relative to the value 
+   of the PC AFTER processing the opcode and operand.
+  */
   relative_mem_address: i8,
 
 }
@@ -767,7 +774,7 @@ impl Ben6502 {
           self.registers.x = operand;
 
           self.status.set_zero(( (self.registers.x & 0x00FF) == 0x0000 ) as u8);
-          self.status.set_negative((self.registers.y & 0b10000000 != 0) as u8);
+          self.status.set_negative((self.registers.x & 0b10000000 != 0) as u8);
         },
         Instruction::LDY => {
           let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
@@ -1038,7 +1045,7 @@ impl Ben6502 {
       // self.needs_additional_cycle = false;
       self.set_addressing_mode(&next_instruction_data.addressing_mode);
       self.execute_instruction(&next_instruction_data.instruction, &next_instruction_data.addressing_mode);
-
+      println!("Executed instruction {:?}", &next_instruction_data.instruction);
       // todo!("We should check if both the set_addressing_mode as well as the execute_instruction functions required more cycles, rather than\
       //       directly increasing the cycle counter inside of those functions. I'm not quite sure how the whole thing works, so I should read up :)");
       // if self.needs_additional_cycle {

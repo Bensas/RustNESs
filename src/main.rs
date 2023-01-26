@@ -109,7 +109,6 @@ impl Application for RustNESs {
   }
 
   fn update(&mut self, message: Self::Message) -> iced::Command<EmulatorMessage> {
-    self.mem_visualizer.update(&self.cpu);
 
     match message {
         EmulatorMessage::ResumeEmulation => {
@@ -123,12 +122,12 @@ impl Application for RustNESs {
           while (self.cpu.current_instruction_remaining_cycles > 0){
             self.clock_cycle();
           }
-
-          // TODO: verify that this is how the cycles should be executed
-          self.clock_cycle();
-          while (self.cpu.current_instruction_remaining_cycles == 0) {
-            self.clock_cycle();
-          }
+          
+          // // TODO: verify that this is how the cycles should be executed
+          // self.clock_cycle();
+          // while (self.cpu.current_instruction_remaining_cycles == 0) {
+          //   self.clock_cycle();
+          // }
           
         },
         EmulatorMessage::NextFrame => {
@@ -150,6 +149,7 @@ impl Application for RustNESs {
       }
     }
 
+    self.mem_visualizer.update(&self.cpu);
     Command::none()
     
   }
