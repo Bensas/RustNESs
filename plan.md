@@ -144,5 +144,83 @@ Once we have this program, we can test using the following:
 - Use Canvas widget with `fill_rectangle` to draw pixels
 - Add function that calls main clock() function until PPU has completed drawing frame and then sets the boolean to false again
 
-# Phase 5: PPU Land
+# Phase 5: PPU Land 1
 
+- Function to load the pattern table from the cartridge onto the array on the PPU
+	- Each table is 4kb long
+		- Contains 256 tiles, 16 bytes each
+			- Each tile represents an 8x8 pixel grid, where each pixel has a value between 0 and 3 repreesnted by two bits (one MSB and one LSB)
+			- Memory wise, each tile has, fist, 8 bytes, each representing the LSB of the pixel values for one row of the tile. After that, 8 more bytes, each byte containing the MSB of the pixel value for one row.
+- Function to get a color from the palette using the palette ID plus the 0-3 (2-bit) color identifier.
+	- Palette ram is stored at location 0x3F00 in the cartridge.
+	- Each palette is 4 bytes in size, so we multiply the paletteID by four to get the palette memoty offset, and then add the color identifier value to get the adecuate color value.
+
+- `nmi` variable to be used if we should use interrupts to le tthe CPU know we're at vertical_blank.
+
+- Some PPU Registers:
+	- Status register (from LSB to MSB):
+		- 5 bits Unused 
+		- 1 bit sprite_overflow
+		- 1 bit sprite_zero_hit
+		- 1 bit vertical_blank
+	- Mask register (from LSB to MSB):
+		- grayscale
+		- render_background_left
+		- render_sprites_left
+		- render_background
+		- render_sprites
+		- enhance_red
+		- enhance_green
+		- enhance_blue
+	- Control regiter (from LSB to MSB):
+		- nametable_x
+		- nametable_y
+		- increment_mode
+		- pattern_sprite
+		- pattern_background
+		- sprite_size
+		- slave_mode
+		- enable_nmi
+	- PPU Address -> Because it's one byte, the address is passed in two parts
+	- PPU Data
+
+- Complete write() and read() functions setting or getting the value of the registers.
+	- For the PPU Address and PPU Data registers we take a specific approach:
+		- We have the following variables
+			- `address_high_byte` -> indicates whether we're writing to the low ot the high byte on thw address register
+			- `ppu_data_buffer` -> stores the ppu data to be read by the CPU
+			- `ppu_address :u16` -> stores the completed address specified by the CPU during two consecutide write() operations
+		- PPU Address write:
+			- On each write, we toggle between the high or the low byte and store it onto the ppu_address variable (starting on the high_byte)
+		- PPU data write:
+			- Writes the data onto the address specified by `ppu_address`
+			- Increases the value of `ppu_address`
+		- PPU Address read needs no implementation
+		- PPU data read:
+			- It's delayed by one read() action
+			- If we're reading from palette range, the behavior is different:
+				```
+				data = ppu_data_buffer;
+				ppu_data_buffer = ppuRead(ppu_address) ->reads from PPU's arrays;
+				if (ppu_address > 0x3F00) data = ppu_data_buffer;
+				ppu_address++;
+				```
+	- Status register:
+		- read() will change the state of the device
+			- `data = (status.reg & 0xE0) | (ppu_data_buffer & 0x1F)`
+			- `status.vertical_blank = 0`
+			- `address_high_byte = true`
+- clock() function:
+	- `if scanline == 241 && cycle == 1`
+		- Set vertical_blank flag to 1
+		- If `enable_nmi` is set to 1 in the control register, set the boolean variable `nmi` to true.
+	- `if scanline == -1 && cycle == 1)`
+		- `status.vertical_blank = 0`
+
+- On the RustNESs clock() function, we should check if the `nmi` variable is set to true on the PPU, then call the `nmi()` function on the CPU and set `nmi` back to false.
+
+- NOTE: "reading from the cartridge" in David's implementation is reading from the PPU's internal arrays. I'm not sure when the information from the cartridge is loaded onto those arrays
+
+## Phase 5.5: testing pattern tables
+- Visualization for Pattern tables in GUI, allowing the user to select the palette (value between 0 and 7) by pressing the "p" key, which increments the value ans wraps around.
+- Try loading `nestest.nes`, maybe other games, veryifying that we can see patterns and palettes.
