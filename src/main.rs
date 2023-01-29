@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Mutex, Arc, MutexGuard};
 
-use emulation::{ Bus16Bit, Ben6502, hex_utils, Ben2C02, Ram2K, Cartridge, Device};
+use emulation::{ Bus16Bit::Bus16Bit, Ben6502::Ben6502, hex_utils, Ben2C02::Ben2C02, Ram::Ram2K, Cartridge::Cartridge, Device::Device};
 
 
 use iced::widget::{button, column, row, text};
@@ -96,8 +96,8 @@ impl Application for RustNESs {
               mem_visualizer: MemoryVisualizer {
                 ram_start_addr: 0x8000,
                 ram_end_addr: 0x8010,
-                stack_start_addr: 0x100 + emulation::SP_RESET_ADDR as u16 - 100,
-                stack_end_addr: 0x100 + emulation::SP_RESET_ADDR as u16
+                stack_start_addr: 0x100 + emulation::Ben6502::SP_RESET_ADDR as u16 - 100,
+                stack_end_addr: 0x100 + emulation::Ben6502::SP_RESET_ADDR as u16
               }
             },
             Command::none()
@@ -249,8 +249,8 @@ impl MemoryVisualizer {
     self.ram_start_addr = cpu.registers.pc;
     self.ram_end_addr = cpu.registers.pc + 16;
 
-    self.stack_start_addr = emulation::STACK_START_ADDR + cpu.registers.sp as u16 - 40;
-    self.stack_end_addr = emulation::STACK_START_ADDR + cpu.registers.sp as u16 + 1;
+    self.stack_start_addr = emulation::Ben6502::STACK_START_ADDR + cpu.registers.sp as u16 - 40;
+    self.stack_end_addr = emulation::Ben6502::STACK_START_ADDR + cpu.registers.sp as u16 + 1;
   }
 
   fn view<'a>(&self, cpu_bus: &Bus16Bit) -> Element<'a, EmulatorMessage> {
@@ -260,7 +260,7 @@ impl MemoryVisualizer {
       text(cpu_bus.get_memory_content_as_string(0x00, 0x50)).size(20),
       text(format!("RAM contents  at PC (Addr 0x{:x} - 0x{:x}):", self.ram_start_addr, self.ram_end_addr)),
       text(cpu_bus.get_memory_content_as_string(self.ram_start_addr, self.ram_end_addr)).size(20),
-      text(emulation::disassemble(cpu_bus.get_memory_content_as_vec(self.ram_start_addr, self.ram_end_addr))).size(18).style(Color::from([0.0, 0.0, 1.0])),
+      text(emulation::Ben6502::disassemble(cpu_bus.get_memory_content_as_vec(self.ram_start_addr, self.ram_end_addr))).size(18).style(Color::from([0.0, 0.0, 1.0])),
       text(format!("Stack contents (Addr 0x{:x} - 0x{:x}):", self.stack_start_addr, self.stack_end_addr)),
       text(cpu_bus.get_memory_content_as_string(self.stack_start_addr, self.stack_end_addr)).size(20)
     ]
