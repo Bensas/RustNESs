@@ -157,13 +157,13 @@ Once we have this program, we can test using the following:
 
 - [PENDING] `nmi` variable to be used if we should use interrupts to le tthe CPU know we're at vertical_blank.
 
-- [PENDING] Some PPU Registers:
-	- [PENDING] Status register (from LSB to MSB):
+- Some PPU Registers:
+	- Status register (from LSB to MSB):
 		- 5 bits Unused 
 		- 1 bit sprite_overflow
 		- 1 bit sprite_zero_hit
 		- 1 bit vertical_blank
-	- [PENDING] Mask register (from LSB to MSB):
+	- Mask register (from LSB to MSB):
 		- grayscale
 		- render_background_left
 		- render_sprites_left
@@ -172,7 +172,7 @@ Once we have this program, we can test using the following:
 		- enhance_red
 		- enhance_green
 		- enhance_blue
-	- [PENDING] Control regiter (from LSB to MSB):
+	- Controller regiter (from LSB to MSB):
 		- nametable_x
 		- nametable_y
 		- increment_mode
@@ -181,8 +181,8 @@ Once we have this program, we can test using the following:
 		- sprite_size
 		- slave_mode
 		- enable_nmi
-	- [PENDING] PPU Address -> Because it's one byte, the address is passed in two parts
-	- [PENDING] PPU Data
+	- PPU Address -> Because it's one byte, the address is passed in two parts
+	- PPU Data
 
 - [PENDING] Complete write() and read() functions setting or getting the value of the registers.
 	- For the PPU Address and PPU Data registers we take a specific approach:

@@ -1151,7 +1151,7 @@ File: Ben2C02.rs
 pub mod Ben2C02 {
   use std::sync::{Arc, Mutex};
 
-  use super::{graphics::Color, Device::Device};
+  use super::{graphics::Color, Device::Device, bitwise_utils};
   use rand::Rng;
 
   fn create_palette_vis_buffer() -> [Color; 64]{
@@ -1230,14 +1230,195 @@ pub mod Ben2C02 {
     return buffer;
   }
 
-  struct PPUStatus {
-    control: u8,
-    mask: u8,
-    oam_addr: u8,
-    oam_data: u8,
-    scroll: u8,
-    ppu_addr: u8,
-    ppu_data: u8
+  struct StatusRegister {
+    flags: u8
+  }
+
+  impl StatusRegister {
+  
+    fn new() -> StatusRegister {
+      return StatusRegister {
+        flags: 0b00000000
+      }
+    }
+  
+    pub fn get_sprite_overflow(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 5);
+    }
+  
+    fn set_sprite_overflow(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 5, value);
+    }
+  
+    pub fn get_sprite_zero_hit(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 6);
+    }
+  
+    fn set_sprite_zero_hit(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 6, value);
+    }
+  
+    pub fn get_vertical_blank(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 7);
+    }
+  
+    fn set_vertical_blank(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 7, value);
+    }
+  }
+
+  pub struct MaskRegister {
+    flags: u8
+  }
+  
+  impl MaskRegister {
+  
+    fn new() -> MaskRegister {
+      return MaskRegister {
+        flags: 0b00000000 
+      }
+    }
+
+    pub fn get_grayscale(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 0);
+    }
+  
+    fn set_grayscale(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 0, value);
+    }
+  
+    pub fn get_render_background_left(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 1);
+    }
+  
+    fn set_render_background_left(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 1, value);
+    }
+  
+    pub fn get_render_sprites_left(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 2);
+    }
+  
+    fn set_render_sprites_left(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 2, value);
+    }
+  
+    pub fn get_render_background(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 3);
+    }
+  
+    fn set_render_background(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 3, value);
+    }
+  
+    pub fn get_render_sprites(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 4);
+    }
+  
+    fn set_render_sprites(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 4, value);
+    }
+  
+    pub fn get_enhance_red(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 5);
+    }
+  
+    fn set_enhance_red(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 5, value);
+    }
+  
+    pub fn get_enhance_green(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 6);
+    }
+  
+    fn set_enhance_green(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 6, value);
+    }
+  
+    pub fn get_enhance_blue(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 7);
+    }
+  
+    fn set_enhance_blue(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 7, value);
+    }
+  }
+
+  pub struct ControllerRegister {
+    flags: u8
+  }
+  
+  impl ControllerRegister {
+  
+    fn new() -> ControllerRegister {
+      return ControllerRegister {
+        flags: 0b00000000 
+      }
+    }
+
+    pub fn get_nametable_x(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 0);
+    }
+  
+    fn set_nametable_x(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 0, value);
+    }
+  
+    pub fn get_nametable_y(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 1);
+    }
+  
+    fn set_nametable_y(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 1, value);
+    }
+  
+    pub fn get_increment_mode(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 2);
+    }
+  
+    fn set_increment_mode(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 2, value);
+    }
+  
+    pub fn get_pattern_sprite(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 3);
+    }
+  
+    fn set_pattern_sprite(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 3, value);
+    }
+  
+    pub fn get_pattern_background(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 4);
+    }
+  
+    fn set_pattern_background(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 4, value);
+    }
+  
+    pub fn get_sprite_size(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 5);
+    }
+  
+    fn set_sprite_size(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 5, value);
+    }
+  
+    pub fn get_slave_mode(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 6);
+    }
+  
+    fn set_slave_mode(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 6, value);
+    }
+  
+    pub fn get_enable_nmi(&self) -> u8 {
+      return bitwise_utils::get_bit(self.flags, 7);
+    }
+  
+    fn set_enable_nmi(&mut self, value: u8) {
+      bitwise_utils::set_bit(&mut self.flags, 7, value);
+    }
   }
 
   pub struct Ben2C02 {
@@ -1248,6 +1429,12 @@ pub mod Ben2C02 {
     scan_line: i16,
     cycle: i16,
     pub frame_render_complete: bool,
+
+    controller_reg: ControllerRegister,
+    mask_reg: MaskRegister,
+    status_reg: StatusRegister,
+    ppu_addr: u16,
+    ppu_data: u8,
 
     palette: [u8; 32],
     name_tables: [[u8; 1024]; 2],
