@@ -188,23 +188,19 @@ Once we have this program, we can test using the following:
 	- For the PPU Address and PPU Data registers we take a specific approach:
 		- We have the following variables
 			- `address_high_byte` -> indicates whether we're writing to the low ot the high byte on thw address register
-			- `ppu_data_buffer` -> stores the ppu data to be read by the CPU
+			- `ppu_data_read_buffer` -> stores the ppu data to be read by the CPU
 			- `ppu_address :u16` -> stores the completed address specified by the CPU during two consecutide write() operations
-		- [PENDING] PPU Address write:
+		- PPU Address write:
 			- On each write, we toggle between the high or the low byte and store it onto the ppu_address variable (starting on the high_byte)
 		- PPU data write:
 			- Writes the data onto the address specified by `ppu_address`
 			- Increases the value of `ppu_address`
-		- [PENDING] PPU Address read needs no implementation
-		- [PENDING] PPU data read:
-			- It's delayed by one read() action
-			- If we're reading from palette range, the behavior is different:
-				```
-				data = ppu_data_buffer;
-				ppu_data_buffer = ppuRead(ppu_address) ->reads from PPU's arrays;
-				if (ppu_address > 0x3F00) data = ppu_data_buffer;
-				ppu_address++;
-				```
+		- PPU Address read needs no implementation
+		- PPU data read:
+			- It's delayed by one read() action, except when reading from palette range
+			- When we read(), we return the current contents of the `ppu_data_read_buffer`, and the data from `ppu_address` is loaded onto that buffer (intead of reading the data form `ppu_address` and returning it directly)
+			- When we're reading from palette range ( > 0x3F00), we read the data at `ppu_address`, load it onto the buffer, and return it immediately.
+			- We also increment the value of `ppu_address`
 	- [PENDING] Status register:
 		- read() will change the state of the device
 			- `data = (status.reg & 0xE0) | (ppu_data_buffer & 0x1F)`
@@ -226,3 +222,9 @@ Once we have this program, we can test using the following:
 ## Phase 5.5: testing pattern tables
 - [PENDING] Visualization for Pattern tables in GUI, allowing the user to select the palette (value between 0 and 7) by pressing the "p" key, which increments the value ans wraps around.
 - [PENDING] Try loading `nestest.nes`, maybe other games, veryifying that we can see patterns and palettes.
+
+
+# Phase 5: PPU Land 2: Name tables
+
+
+- Incrementing the `ppu_address` variable should depend on the value of the control register.

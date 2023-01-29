@@ -1436,7 +1436,7 @@ pub mod Ben2C02 {
     status_reg: StatusRegister,
     writing_high_byte_of_addr: bool,
     ppu_addr: u16,
-    ppu_data: u8,
+    ppu_data_read_buffer: u8,
 
     pattern_tables: [[u8; 4096]; 2],
     pattern_tables_mem_bounds: (u16, u16),
@@ -1560,6 +1560,25 @@ pub mod Ben2C02 {
                   name_table, or palette memory bounds!. Provided address was 0x{:X}", addr));
       }
     }
+
+    fn read_from_ppu_memory(&self, addr: u16) -> Result<u8, String>{
+      if self.in_pattern_table_memory_bounds(addr) {
+		    let data = self.pattern_tables[((addr & 0x1000) > 0) as usize][(addr & 0x0FFF) as usize];
+        return Ok(data);
+      }
+      else if self.in_name_table_memory_bounds(addr) {
+        // TODO: implement
+        return Ok(0);
+      }
+      else if self.in_palette_memory_bounds(addr) {
+        // TODO: implement
+        return Ok(0);
+      }
+      else {
+        return  Err(format!("Tried reading from PPU memory, but provided address wasn't within pattern_table,
+                  name_table, or palette memory bounds!. Provided address was 0x{:X}", addr));
+      }
+    }
   
   }
 
@@ -1596,13 +1615,12 @@ pub mod Ben2C02 {
               self.ppu_addr &= 0xFF00;
               self.ppu_addr += (data as u16); 
             }
+            self.writing_high_byte_of_addr = !self.writing_high_byte_of_addr;
           },
           0x7 => { // PPU data
             let write_to_cartridge = self.cartridge.lock().unwrap().write(addr, data);
             match write_to_cartridge {
-              Ok(()) => {
-                
-              },
+              Ok(()) => {},
               Err(message) => {
                 println!("Tried to write to cartridge, but failed with error: {}. Writing to PPU internal memory instead :)" , message);
                 self.write_to_ppu_memory(addr, data).unwrap();
@@ -1623,28 +1641,55 @@ pub mod Ben2C02 {
       if self.in_memory_bounds(addr) {
         let mirrored_addr = addr & 0x0007; // Equivalent to doing % 0x0007
         match mirrored_addr {
-          0x1 => {
+          0x1 => { // Control
             return Ok(0);
 
-          }, // Control
-          0x2 => {
+          },
+          0x2 => { // Mask
             return Ok(0);
-          }, // Mask
-          0x3 => {
+          },
+          0x3 => { // OAM Address
             return Ok(0);
-          }, // OAM Address
-          0x4 => {
+          },
+          0x4 => { // OAM Data
             return Ok(0);
-          }, // OAM Data
-          0x5 => {
+          },
+          0x5 => { // Scroll
             return Ok(0);
-          }, // Scroll
-          0x6 => {
+          },
+          0x6 => { // PPP Address
             return Ok(0);
-          }, // PPu Address
-          0x7 => {
-            return Ok(0);
-          }, // PPU data
+          },
+          0x7 => { // PPU data
+            let read_result: u8;
+            let read_from_cartridge = self.cartridge.lock().unwrap().read(self.ppu_addr);
+            match read_from_cartridge {
+              Ok(retrieved_data) => {
+                read_result = retrieved_data;
+              },
+              Err(message) => {
+                println!("Tried to read from cartridge, but failed with error: {}. Reading from PPU internal memory instead :)" , message);
+                read_result = self.read_from_ppu_memory(self.ppu_addr).unwrap();
+              }
+            }
+
+            let return_value : u8;
+
+            // Unless reading from palette memory, we return the value that is currently 
+            // stored on the read buffer, and then update the buffer with the 
+            // data located at self.ppu_addr
+            // Essentially, most read() operations are delayed one cycle.
+            if self.in_palette_memory_bounds(self.ppu_addr) {
+              self.ppu_data_read_buffer = read_result;
+              return_value = read_result;
+            } else {
+              return_value = self.ppu_data_read_buffer;
+              self.ppu_data_read_buffer = read_result;
+            }
+            self.ppu_addr += 1; // TODO: depending on increment mode, we might want to add 32 bytes instead of 1
+            return Ok(return_value);
+
+          },
           _ => return Err(String::from("Error while mirroring address in PPU write() function!"))
         }
       } else {
