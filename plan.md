@@ -146,24 +146,24 @@ Once we have this program, we can test using the following:
 
 # Phase 5: PPU Land 1: Basic functionality and pattern tables
 
-- Function to load the pattern table from the cartridge onto the array on the PPU
+- [PENDING] Function to load the pattern table from the cartridge onto the array on the PPU
 	- Each table is 4kb long
 		- Contains 256 tiles, 16 bytes each
 			- Each tile represents an 8x8 pixel grid, where each pixel has a value between 0 and 3 repreesnted by two bits (one MSB and one LSB)
 			- Memory wise, each tile has, fist, 8 bytes, each representing the LSB of the pixel values for one row of the tile. After that, 8 more bytes, each byte containing the MSB of the pixel value for one row.
-- Function to get a color from the palette using the palette ID plus the 0-3 (2-bit) color identifier.
+- [PENDING] Function to get a color from the palette using the palette ID plus the 0-3 (2-bit) color identifier.
 	- Palette ram is stored at location 0x3F00 in the cartridge.
 	- Each palette is 4 bytes in size, so we multiply the paletteID by four to get the palette memoty offset, and then add the color identifier value to get the adecuate color value.
 
-- `nmi` variable to be used if we should use interrupts to le tthe CPU know we're at vertical_blank.
+- [PENDING] `nmi` variable to be used if we should use interrupts to le tthe CPU know we're at vertical_blank.
 
-- Some PPU Registers:
-	- Status register (from LSB to MSB):
+- [PENDING] Some PPU Registers:
+	- [PENDING] Status register (from LSB to MSB):
 		- 5 bits Unused 
 		- 1 bit sprite_overflow
 		- 1 bit sprite_zero_hit
 		- 1 bit vertical_blank
-	- Mask register (from LSB to MSB):
+	- [PENDING] Mask register (from LSB to MSB):
 		- grayscale
 		- render_background_left
 		- render_sprites_left
@@ -172,7 +172,7 @@ Once we have this program, we can test using the following:
 		- enhance_red
 		- enhance_green
 		- enhance_blue
-	- Control regiter (from LSB to MSB):
+	- [PENDING] Control regiter (from LSB to MSB):
 		- nametable_x
 		- nametable_y
 		- increment_mode
@@ -181,10 +181,10 @@ Once we have this program, we can test using the following:
 		- sprite_size
 		- slave_mode
 		- enable_nmi
-	- PPU Address -> Because it's one byte, the address is passed in two parts
-	- PPU Data
+	- [PENDING] PPU Address -> Because it's one byte, the address is passed in two parts
+	- [PENDING] PPU Data
 
-- Complete write() and read() functions setting or getting the value of the registers.
+- [PENDING] Complete write() and read() functions setting or getting the value of the registers.
 	- For the PPU Address and PPU Data registers we take a specific approach:
 		- We have the following variables
 			- `address_high_byte` -> indicates whether we're writing to the low ot the high byte on thw address register
@@ -210,19 +210,19 @@ Once we have this program, we can test using the following:
 			- `data = (status.reg & 0xE0) | (ppu_data_buffer & 0x1F)`
 			- `status.vertical_blank = 0`
 			- `address_high_byte = true`
-- clock() function:
+- [PENDING] clock() function:
 	- `if scanline == 241 && cycle == 1`
 		- Set vertical_blank flag to 1
 		- If `enable_nmi` is set to 1 in the control register, set the boolean variable `nmi` to true.
 	- `if scanline == -1 && cycle == 1)`
 		- `status.vertical_blank = 0`
 
-- On the RustNESs clock() function, we should check if the `nmi` variable is set to true on the PPU, then call the `nmi()` function on the CPU and set `nmi` back to false.
+- [PENDING] On the RustNESs clock() function, we should check if the `nmi` variable is set to true on the PPU, then call the `nmi()` function on the CPU and set `nmi` back to false.
 
 - DOUBT: "reading from the cartridge" in David's implementation is reading from the PPU's internal arrays. I'm not sure when the information from the cartridge is loaded onto those arrays
 	-> I believe this is incorrect. The read() and write() functions on the PPU call the read() and write() functions on the cartridge. Depending on the mapper, these might fail, in which case we will use the PPU's internal arrays, but in the case of Mapper000, we will never even use the PPU's internal memory (when reading pattern tables, at least)
 
 
 ## Phase 5.5: testing pattern tables
-- Visualization for Pattern tables in GUI, allowing the user to select the palette (value between 0 and 7) by pressing the "p" key, which increments the value ans wraps around.
-- Try loading `nestest.nes`, maybe other games, veryifying that we can see patterns and palettes.
+- [PENDING] Visualization for Pattern tables in GUI, allowing the user to select the palette (value between 0 and 7) by pressing the "p" key, which increments the value ans wraps around.
+- [PENDING] Try loading `nestest.nes`, maybe other games, veryifying that we can see patterns and palettes.
