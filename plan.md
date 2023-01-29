@@ -190,13 +190,13 @@ Once we have this program, we can test using the following:
 			- `address_high_byte` -> indicates whether we're writing to the low ot the high byte on thw address register
 			- `ppu_data_buffer` -> stores the ppu data to be read by the CPU
 			- `ppu_address :u16` -> stores the completed address specified by the CPU during two consecutide write() operations
-		- PPU Address write:
+		- [PENDING] PPU Address write:
 			- On each write, we toggle between the high or the low byte and store it onto the ppu_address variable (starting on the high_byte)
 		- PPU data write:
 			- Writes the data onto the address specified by `ppu_address`
 			- Increases the value of `ppu_address`
-		- PPU Address read needs no implementation
-		- PPU data read:
+		- [PENDING] PPU Address read needs no implementation
+		- [PENDING] PPU data read:
 			- It's delayed by one read() action
 			- If we're reading from palette range, the behavior is different:
 				```
@@ -205,7 +205,7 @@ Once we have this program, we can test using the following:
 				if (ppu_address > 0x3F00) data = ppu_data_buffer;
 				ppu_address++;
 				```
-	- Status register:
+	- [PENDING] Status register:
 		- read() will change the state of the device
 			- `data = (status.reg & 0xE0) | (ppu_data_buffer & 0x1F)`
 			- `status.vertical_blank = 0`

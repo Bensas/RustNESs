@@ -9,7 +9,7 @@ File: device.rs
 pub mod Device {
   pub trait Device {
     fn in_memory_bounds(&self, addr: u16)-> bool;
-    fn write(&mut self, addr: u16, content: u8) -> Result<(), String>;
+    fn write(&mut self, addr: u16, data: u8) -> Result<(), String>;
     fn read(&self, addr: u16) -> Result<u8, String>;
   }
 }
@@ -1434,12 +1434,16 @@ pub mod Ben2C02 {
     controller_reg: ControllerRegister,
     mask_reg: MaskRegister,
     status_reg: StatusRegister,
+    writing_high_byte_of_addr: bool,
     ppu_addr: u16,
     ppu_data: u8,
 
-    palette: [u8; 32],
-    name_tables: [[u8; 1024]; 2],
     pattern_tables: [[u8; 4096]; 2],
+    pattern_tables_mem_bounds: (u16, u16),
+    name_tables: [[u8; 1024]; 2],
+    name_tables_mem_bounds: (u16, u16),
+    palette: [u8; 32],
+    palette_mem_bounds: (u16, u16),
 
     
     // These arrays are used for emulator visualization, thus the higher level Color structure
@@ -1463,17 +1467,35 @@ pub mod Ben2C02 {
         controller_reg: ControllerRegister::new(),
         mask_reg: MaskRegister::new(),
         status_reg: StatusRegister::new(),
+        writing_high_byte_of_addr: true,
         ppu_addr: 0,
         ppu_data: 0,
 
-        palette: [0; 32],
-        name_tables: [[0; 1024]; 2],
         pattern_tables: [[0; 4096]; 2],
+        pattern_tables_mem_bounds: (0x0000, 0x1FFF),
+        name_tables: [[0; 1024]; 2],
+        name_tables_mem_bounds: (0x2000, 0x3EFF),
+        palette: [0; 32],
+        palette_mem_bounds: (0x3F00, 0x3FFF),
+
+
         palette_vis_bufer: create_palette_vis_buffer(),
         screen_vis_buffer: [[Color::new(0, 0, 0); 256]; 240],
         name_tables_vis_buffer: [[[Color::new(0, 0, 0); 256]; 240]; 2],
         pattern_tables_vis_buffer: [[[Color::new(0, 0, 0); 128]; 128]; 2],
       }
+    }
+
+    fn in_pattern_table_memory_bounds(&self, addr: u16) -> bool {
+      return addr >= self.pattern_tables_mem_bounds.0 && addr <= self.pattern_tables_mem_bounds.1;
+    }
+
+    fn in_name_table_memory_bounds(&self, addr: u16) -> bool {
+      return addr >= self.name_tables_mem_bounds.0 && addr <= self.name_tables_mem_bounds.1;
+    }
+
+    fn in_palette_memory_bounds(&self, addr: u16) -> bool {
+      return addr >= self.palette_mem_bounds.0 && addr <= self.palette_mem_bounds.1;
     }
 
     pub fn clock_cycle(&mut self) {
@@ -1519,44 +1541,76 @@ pub mod Ben2C02 {
       let pixel_color_code = self.palette[(palette_id * 4 + pixel_value) as usize];
       return self.palette_vis_bufer[pixel_color_code as usize];
     }
+
+    fn write_to_ppu_memory(&mut self, addr: u16, data: u8) -> Result<(), String>{
+      if self.in_pattern_table_memory_bounds(addr) {
+		    self.pattern_tables[((addr & 0x1000) > 0) as usize][(addr & 0x0FFF) as usize] = data;
+        return Ok(());
+      }
+      else if self.in_name_table_memory_bounds(addr) {
+        // TODO: implement
+        return Ok(());
+      }
+      else if self.in_palette_memory_bounds(addr) {
+        // TODO: implement
+        return Ok(());
+      }
+      else {
+        return  Err(format!("Tried writing to PPU memory, but provided address wasn't within pattern_table,
+                  name_table, or palette memory bounds!. Provided address was 0x{:X}", addr));
+      }
+    }
   
   }
 
   impl Device for Ben2C02 {
 
     fn in_memory_bounds(&self, addr: u16)-> bool {
-      if addr >= self.memory_bounds.0 && addr <= self.memory_bounds.1 {
-        return true;
-      } else {
-        return false;
-      }
+      return  addr >= self.memory_bounds.0 && addr <= self.memory_bounds.1;
     }
 
-    fn write(&mut self, addr: u16, content: u8) -> Result<(), String> {
+    fn write(&mut self, addr: u16, data: u8) -> Result<(), String> {
       if self.in_memory_bounds(addr) {
         let mirrored_addr = addr & 0x0007; // Equivalent to doing % 0x0007
         match mirrored_addr {
-          0x1 => {
+          0x1 => { // Control
 
-          }, // Control
-          0x2 => {
+          },
+          0x2 => { // Mask
 
-          }, // Mask
-          0x3 => {
+          },
+          0x3 => { // OAM Address
 
-          }, // OAM Address
-          0x4 => {
+          },
+          0x4 => { // OAM Data
 
-          }, // OAM Data
-          0x5 => {
+          },
+          0x5 => { // Scroll
 
-          }, // Scroll
-          0x6 => {
-
-          }, // PPu Address
-          0x7 => {
-
-          }, // PPU data
+          },
+          0x6 => { // PPU Address
+            if self.writing_high_byte_of_addr {
+              self.ppu_addr &= 0xFF;
+              self.ppu_addr += (data as u16) << 8; 
+            } else {
+              self.ppu_addr &= 0xFF00;
+              self.ppu_addr += (data as u16); 
+            }
+          },
+          0x7 => { // PPU data
+            let write_to_cartridge = self.cartridge.lock().unwrap().write(addr, data);
+            match write_to_cartridge {
+              Ok(()) => {
+                
+              },
+              Err(message) => {
+                println!("Tried to write to cartridge, but failed with error: {}. Writing to PPU internal memory instead :)" , message);
+                self.write_to_ppu_memory(addr, data).unwrap();
+              }
+            }
+            self.ppu_addr += 1; // TODO: depending on increment mode, we might want to add 32 bytes instead of 1
+            return Ok(());
+          },
           _ => return Err(String::from("Error while mirroring address in PPU write() function!"))
         }
         return Ok(());
@@ -1862,14 +1916,28 @@ pub mod Cartridge {
     fn write(&mut self, addr: u16, content: u8) -> Result<(), String> {
       if self.in_cpu_memory_bounds(addr) {
         // Write operation from CPU
-        let mapped_addr = self.mapper.mapWriteAddressFromCPU(addr).unwrap();
-        self.PRG_data[mapped_addr as usize] = content;
-        return Ok(());
+        let mapped_addr_res = self.mapper.mapWriteAddressFromCPU(addr);
+        match mapped_addr_res {
+          Ok(mapped_addr) => {
+            self.PRG_data[mapped_addr as usize] = content;
+            return Ok(());
+          },
+          Err(message) => {
+            return Err(message);
+          }
+        }
       } else if self.in_ppu_memory_bounds(addr) {
         // Write operation from PPU
-        let mapped_addr = self.mapper.mapWriteAddressFromPPU(addr).unwrap();
-        self.CHR_data[mapped_addr as usize] = content;
-        return Ok(());
+        let mapped_addr_res = self.mapper.mapWriteAddressFromPPU(addr);
+        match mapped_addr_res {
+          Ok(mapped_addr) => {
+            self.CHR_data[mapped_addr as usize] = content;
+            return Ok(());
+          },
+          Err(message) => {
+            return Err(message);
+          }
+        }        
       } else {
         return Err(String::from("Tried to read outside Cartridge bounds!"));
       }
@@ -1878,14 +1946,28 @@ pub mod Cartridge {
     fn read(&self, addr: u16) -> Result<u8, String> {
       if self.in_cpu_memory_bounds(addr) {
         // Read operation from CPU
-        let mapped_addr = self.mapper.mapReadAddressFromCPU(addr).unwrap();
-        let data = self.PRG_data.get(mapped_addr as usize).unwrap();
-        return Ok(*data);
+        let mapped_addr_res = self.mapper.mapReadAddressFromCPU(addr);
+        match mapped_addr_res {
+          Ok(mapped_addr) => {
+            let data = self.PRG_data.get(mapped_addr as usize).unwrap();
+            return Ok(*data);
+          },
+          Err(message) => {
+            return Err(message);
+          }
+        }
       } else if self.in_ppu_memory_bounds(addr) {
         // Read operation from PPU
-        let mapped_addr = self.mapper.mapReadAddressFromPPU(addr).unwrap();
-        let data = self.CHR_data.get(mapped_addr as usize).unwrap();
-        return Ok(*data);
+        let mapped_addr_res = self.mapper.mapReadAddressFromPPU(addr);
+        match mapped_addr_res {
+          Ok(mapped_addr) => {
+            let data = self.CHR_data.get(mapped_addr as usize).unwrap();
+            return Ok(*data);
+          },
+          Err(message) => {
+            return Err(message);
+          }
+        }
       } else {
         return Err(String::from("Tried to read outside Cartridge bounds!"));
       }
