@@ -1429,6 +1429,7 @@ pub mod Ben2C02 {
     scan_line: i16,
     cycle: i16,
     pub frame_render_complete: bool,
+    pub trigger_cpu_nmi: bool,
 
     controller_reg: ControllerRegister,
     mask_reg: MaskRegister,
@@ -1453,9 +1454,18 @@ pub mod Ben2C02 {
       return Ben2C02 {
         memory_bounds: (0x2000, 0x3FFF),
         cartridge: cartridge,
+        
         scan_line: 0,
         cycle: 0,
         frame_render_complete: false,
+        trigger_cpu_nmi: false,
+
+        controller_reg: ControllerRegister::new(),
+        mask_reg: MaskRegister::new(),
+        status_reg: StatusRegister::new(),
+        ppu_addr: 0,
+        ppu_data: 0,
+
         palette: [0; 32],
         name_tables: [[0; 1024]; 2],
         pattern_tables: [[0; 4096]; 2],
@@ -1479,8 +1489,37 @@ pub mod Ben2C02 {
           self.frame_render_complete = true;
         }
       }
-
     }
+
+
+    // Refer to https://www.nesdev.org/wiki/PPU_programmer_reference#Pattern_tables
+    // for a clearer explanation :)
+    fn update_pattern_tables_vis_buffer(&mut self, palette_id: u8) {
+      let pattern_table_id = 0; // Start by updating only one pattern table
+      const PATTERN_TABLE_SIZE: u16 = 4096;
+      let start_addr = PATTERN_TABLE_SIZE * pattern_table_id;
+      for tileIndexRow in 0..16 {
+        for tileIndexCol in 0..16 {
+          for pixelRow in 0..8 {
+            let tile_lsb_data = self.read(start_addr + tileIndexCol * 16 + tileIndexRow * 256 + pixelRow).unwrap();
+            let tile_msb_data = self.read(start_addr + tileIndexCol * 16 + tileIndexRow * 256 + pixelRow + 8).unwrap();
+            for pixelCol in 0..8 {
+              let pixel_value_lsb = tile_lsb_data & (0b10000000 >> pixelCol);
+              let pixel_value_msb = tile_msb_data & (0b10000000 >> pixelCol);
+              let pixel_value = (pixel_value_msb << 1) + pixel_value_lsb;
+              let pixel_color = self.get_color_from_palette(pixel_value, palette_id);
+              self.pattern_tables_vis_buffer[pattern_table_id as usize][(tileIndexCol * 8 + pixelCol) as usize][(tileIndexRow * 8 + pixelRow) as usize] = pixel_color;
+            }
+          }
+        }
+      }
+    }
+
+    fn get_color_from_palette(&self, pixel_value: u8, palette_id: u8) -> Color {
+      let pixel_color_code = self.palette[(palette_id * 4 + pixel_value) as usize];
+      return self.palette_vis_bufer[pixel_color_code as usize];
+    }
+  
   }
 
   impl Device for Ben2C02 {

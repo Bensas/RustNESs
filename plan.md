@@ -146,16 +146,16 @@ Once we have this program, we can test using the following:
 
 # Phase 5: PPU Land 1: Basic functionality and pattern tables
 
-- [PENDING] Function to load the pattern table from the cartridge onto the array on the PPU
+- Function to read the patter tables from the PPU (which might read it from the cartridge) and load it onto our visualization buffer
 	- Each table is 4kb long
 		- Contains 256 tiles, 16 bytes each
-			- Each tile represents an 8x8 pixel grid, where each pixel has a value between 0 and 3 repreesnted by two bits (one MSB and one LSB)
+			- Each tile represents an 8x8 pixel grid, where each pixel has a value between 0 and 3 repreesnted by two bits (one LSB and one MSB)
 			- Memory wise, each tile has, fist, 8 bytes, each representing the LSB of the pixel values for one row of the tile. After that, 8 more bytes, each byte containing the MSB of the pixel value for one row.
-- [PENDING] Function to get a color from the palette using the palette ID plus the 0-3 (2-bit) color identifier.
+- Function to get a color from the palette using the palette ID plus the 0-3 (2-bit) color identifier.
 	- Palette ram is stored at location 0x3F00 in the cartridge.
 	- Each palette is 4 bytes in size, so we multiply the paletteID by four to get the palette memoty offset, and then add the color identifier value to get the adecuate color value.
 
-- [PENDING] `nmi` variable to be used if we should use interrupts to le tthe CPU know we're at vertical_blank.
+- `trigger_cpu_nmi` variable to be used to let tthe CPU know we're at vertical_blank. (Only used if the `enable_nmi` flag is active in the controller register)
 
 - Some PPU Registers:
 	- Status register (from LSB to MSB):
