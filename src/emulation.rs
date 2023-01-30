@@ -718,20 +718,20 @@ pub mod Ben6502 {
           },
           Instruction::DEC => {
             let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
-            let result = operand - 1;
+            let result = operand.wrapping_sub(1);
             self.bus.write(self.absolute_mem_address, result);
   
             self.status.set_zero(( (result & 0x00FF) == 0x0000 ) as u8);
             self.status.set_negative((result & 0b10000000 != 0) as u8);
           },
           Instruction::DEX => {
-            self.registers.x -= 1;
+            self.registers.x = self.registers.x.wrapping_sub(1);
   
             self.status.set_zero(( (self.registers.x & 0x00FF) == 0x0000 ) as u8);
             self.status.set_negative((self.registers.x & 0b10000000 != 0) as u8);
           },
           Instruction::DEY => {
-            self.registers.y -= 1;
+            self.registers.y = self.registers.y.wrapping_sub(1);
   
             self.status.set_zero(( (self.registers.y & 0x00FF) == 0x0000 ) as u8);
             self.status.set_negative((self.registers.y & 0b10000000 != 0) as u8);
@@ -1117,7 +1117,7 @@ pub mod Ben6502 {
   }
   
   
-  pub fn disassemble(program: Vec<u8>) -> String {
+  pub fn disassemble(program: &Vec<u8>) -> String {
     let mut result = String::new();
     let mut i = 0;
     while i < program.len() {
@@ -1153,6 +1153,8 @@ pub mod Ben2C02 {
 
   use super::{graphics::Color, Device::Device, bitwise_utils};
   use rand::Rng;
+
+  pub const PPU_MEMORY_BOUNDS: (u16, u16) = (0x2000, 0x3FFF);
 
   fn create_palette_vis_buffer() -> [Color; 64]{
     let mut buffer= [Color::new(0, 0, 0);64];
@@ -1456,7 +1458,7 @@ pub mod Ben2C02 {
   impl Ben2C02 {
     pub fn new(cartridge: Arc<Mutex<dyn Device>>) -> Ben2C02 {
       return Ben2C02 {
-        memory_bounds: (0x2000, 0x3FFF),
+        memory_bounds: PPU_MEMORY_BOUNDS,
         cartridge: cartridge,
         
         scan_line: 0,
@@ -1502,7 +1504,7 @@ pub mod Ben2C02 {
 
       let mut rng = rand::thread_rng();
       if (self.cycle < 256 && self.scan_line < 240 && self.scan_line != -1) {
-        self.screen_vis_buffer[self.cycle as usize][self.scan_line as usize] = self.palette_vis_bufer[rng.gen_range(0..(self.palette_vis_bufer.len()-1))]; // Temporary
+        self.screen_vis_buffer[self.scan_line as usize][self.cycle as usize] = self.palette_vis_bufer[rng.gen_range(0..(self.palette_vis_bufer.len()-1))]; // Temporary
       }
         
       self.cycle += 1;

@@ -95,10 +95,17 @@ impl Application for RustNESs {
                 pixel_height: SCREEN_PIXEL_HEIGHT
               },
               mem_visualizer: MemoryVisualizer {
-                ram_start_addr: 0x8000,
-                ram_end_addr: 0x8010,
+                ram_start_addr: 0x00,
+                ram_end_addr: 0x50,
+                pc_start_addr:0x8000,
+                pc_end_addr: 0x8010,
                 stack_start_addr: 0x100 + emulation::Ben6502::SP_RESET_ADDR as u16 - 100,
-                stack_end_addr: 0x100 + emulation::Ben6502::SP_RESET_ADDR as u16
+                stack_end_addr: 0x100 + emulation::Ben6502::SP_RESET_ADDR as u16,
+
+                ram_content_str: String::from(""),
+                program_content_str: String::from(""),
+                program_content: vec![],
+                stack_content_str: String::from(""),
               }
             },
             Command::none()
@@ -168,7 +175,7 @@ impl Application for RustNESs {
           }
       }
     }
-    self.mem_visualizer.update(&self.cpu);
+    self.mem_visualizer.update(&mut self.cpu);
     self.ppu_screen_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
     Command::none()
     
@@ -187,7 +194,7 @@ impl Application for RustNESs {
       row![
 
         // MemoryVisualizer
-        self.mem_visualizer.view(&self.cpu.bus),
+        self.mem_visualizer.view(),
 
         // StatusVisualizer
         column![
@@ -241,29 +248,53 @@ impl Application for RustNESs {
 struct MemoryVisualizer {
   ram_start_addr: u16,
   ram_end_addr: u16,
+  pc_start_addr: u16,
+  pc_end_addr: u16,
   stack_start_addr: u16,
   stack_end_addr: u16,
+
+  ram_content_str: String,
+  program_content_str: String,
+  program_content: Vec<u8>,
+  stack_content_str: String
 }
 
 impl MemoryVisualizer {
-  fn update(&mut self, cpu: &Ben6502) {
-    self.ram_start_addr = cpu.registers.pc;
-    self.ram_end_addr = cpu.registers.pc + 16;
+  fn update(&mut self, cpu: &mut Ben6502) {
+
+    self.pc_start_addr = cpu.registers.pc;
+    self.pc_end_addr = cpu.registers.pc + 16;
 
     self.stack_start_addr = emulation::Ben6502::STACK_START_ADDR + cpu.registers.sp as u16 - 40;
     self.stack_end_addr = emulation::Ben6502::STACK_START_ADDR + cpu.registers.sp as u16 + 1;
+
+
+    if ((self.pc_start_addr >= emulation::Ben2C02::PPU_MEMORY_BOUNDS.0 && self.pc_start_addr <= emulation::Ben2C02::PPU_MEMORY_BOUNDS.1) ||
+        (self.pc_end_addr >= emulation::Ben2C02::PPU_MEMORY_BOUNDS.0 && self.pc_end_addr <= emulation::Ben2C02::PPU_MEMORY_BOUNDS.1) ||
+        (self.stack_start_addr >= emulation::Ben2C02::PPU_MEMORY_BOUNDS.0 && self.stack_start_addr <= emulation::Ben2C02::PPU_MEMORY_BOUNDS.1) ||
+        (self.stack_end_addr >= emulation::Ben2C02::PPU_MEMORY_BOUNDS.0 && self.stack_end_addr <= emulation::Ben2C02::PPU_MEMORY_BOUNDS.1) ||
+        (self.ram_start_addr >= emulation::Ben2C02::PPU_MEMORY_BOUNDS.0 && self.ram_start_addr <= emulation::Ben2C02::PPU_MEMORY_BOUNDS.1) ||
+        (self.ram_end_addr >= emulation::Ben2C02::PPU_MEMORY_BOUNDS.0 && self.ram_end_addr <= emulation::Ben2C02::PPU_MEMORY_BOUNDS.1)) {
+          panic!("Memory visualizer is reading from PPU memory bounds, which might alter the state of the emulation!");
+        }
+
+    self.ram_content_str = cpu.bus.get_memory_content_as_string(self.ram_start_addr, self.ram_end_addr);
+    self.program_content_str = cpu.bus.get_memory_content_as_string(self.pc_start_addr, self.pc_end_addr);
+    self.program_content = cpu.bus.get_memory_content_as_vec(self.pc_start_addr, self.pc_end_addr);
+    self.stack_content_str = cpu.bus.get_memory_content_as_string(self.stack_start_addr, self.stack_end_addr);    
+
   }
 
-  fn view<'a>(&self, cpu_bus: &Bus16Bit) -> Element<'a, EmulatorMessage> {
+  fn view<'a>(&self) -> Element<'a, EmulatorMessage> {
   
     column![
-      text(format!("RAM contents (Addr 0x{:x} - 0x{:x}):", 0x00, 0x50)),
-      text(cpu_bus.get_memory_content_as_string(0x00, 0x50)).size(20),
-      text(format!("RAM contents  at PC (Addr 0x{:x} - 0x{:x}):", self.ram_start_addr, self.ram_end_addr)),
-      text(cpu_bus.get_memory_content_as_string(self.ram_start_addr, self.ram_end_addr)).size(20),
-      text(emulation::Ben6502::disassemble(cpu_bus.get_memory_content_as_vec(self.ram_start_addr, self.ram_end_addr))).size(18).style(Color::from([0.0, 0.0, 1.0])),
+      text(format!("RAM contents (Addr 0x{:x} - 0x{:x}):", self.ram_start_addr, self.ram_end_addr)),
+      text(&self.ram_content_str).size(20),
+      text(format!("RAM contents  at PC (Addr 0x{:x} - 0x{:x}):", self.pc_start_addr, self.pc_end_addr)),
+      text(&self.program_content_str).size(20),
+      text(emulation::Ben6502::disassemble(&self.program_content)).size(18).style(Color::from([0.0, 0.0, 1.0])),
       text(format!("Stack contents (Addr 0x{:x} - 0x{:x}):", self.stack_start_addr, self.stack_end_addr)),
-      text(cpu_bus.get_memory_content_as_string(self.stack_start_addr, self.stack_end_addr)).size(20)
+      text(&self.stack_content_str).size(20)
     ]
     .max_width(500)
     .into()
