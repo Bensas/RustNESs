@@ -40,6 +40,8 @@ struct RustNESs {
   cycles_per_second: u64,
 
   ppu_screen_buffer_visualizer: PPUScreenBufferVisualizer,
+  ppu_pattern_tables_buffer_visualizer: PPUPatternTableBufferVisualizer,
+
   mem_visualizer: MemoryVisualizer
 }
 
@@ -94,6 +96,11 @@ impl Application for RustNESs {
               cycles_per_second: EMULATOR_CYCLES_PER_SECOND,
               ppu_screen_buffer_visualizer: PPUScreenBufferVisualizer {
                 screen_vis_buffer: [[emulation::graphics::Color::new(0, 0, 0); 256]; 240],
+                canvas_cache: Cache::default(),
+                pixel_height: SCREEN_PIXEL_HEIGHT
+              },
+              ppu_pattern_tables_buffer_visualizer: PPUPatternTableBufferVisualizer {
+                pattern_tables_vis_buffer: [[[emulation::graphics::Color::new(0, 0, 0); 128]; 128]; 2],
                 canvas_cache: Cache::default(),
                 pixel_height: SCREEN_PIXEL_HEIGHT
               },
@@ -180,6 +187,7 @@ impl Application for RustNESs {
     }
     self.mem_visualizer.update(&mut self.cpu);
     self.ppu_screen_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
+    self.ppu_pattern_tables_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
     Command::none()
     
   }
@@ -190,6 +198,7 @@ impl Application for RustNESs {
       row![
 
       self.ppu_screen_buffer_visualizer.view(),
+      self.ppu_pattern_tables_buffer_visualizer.view(),
 
       ],
 
@@ -334,11 +343,6 @@ impl PPUScreenBufferVisualizer {
 }
 
 
-#[derive(Debug, Clone)]
-    pub enum Message {
-        Hello(u8)
-    }
-
 impl canvas::Program<EmulatorMessage> for PPUScreenBufferVisualizer {
   type State = ();
 
@@ -360,6 +364,69 @@ impl canvas::Program<EmulatorMessage> for PPUScreenBufferVisualizer {
               Size::new(self.pixel_height, self.pixel_height),
               pixel_color.to_iced_color(),
           );
+        }
+      }
+    });
+    vec![pixel_grid]
+  }
+}
+
+struct PPUPatternTableBufferVisualizer {
+  pattern_tables_vis_buffer: [[[emulation::graphics::Color; 128]; 128]; 2],
+  canvas_cache: Cache,
+  pixel_height: f32
+}
+
+impl PPUPatternTableBufferVisualizer {
+  pub fn view(&self) -> Element<EmulatorMessage> {
+    Canvas::new(self)
+        .width(Length::Units(SCREEN_HEIGHT * 2))
+        .height(Length::Units(SCREEN_HEIGHT))
+        .into()
+  }
+
+  pub fn update_data(&mut self, ppu: &Ben2C02) {
+    // Every time we update, I'm copying the contents of the PPU buffer
+    // onto the buffer of the Visualizer. This is awful, but I can't 
+    // figure out lifetimes well enough to directly reference the PPU buffer :/
+    // TODO: Reference PPU buffer directly
+    for tableIndex in 0..2 {
+      for i in 0..ppu.pattern_tables_vis_buffer[0].len() {
+        for j in 0..ppu.pattern_tables_vis_buffer[0][0].len() {
+          self.pattern_tables_vis_buffer[tableIndex][i][j] = ppu.pattern_tables_vis_buffer[tableIndex][i][j];
+        }
+      }
+    }
+    self.canvas_cache.clear();
+  }
+}
+
+impl canvas::Program<EmulatorMessage> for PPUPatternTableBufferVisualizer {
+  type State = ();
+
+  fn draw(
+      &self,
+      _state: &Self::State,
+      _theme: &Theme,
+      bounds: Rectangle,
+      cursor: Cursor,
+  ) -> Vec<Geometry> {
+
+    let pixel_grid = self.canvas_cache.draw(bounds.size(), |frame| {
+      for tableIndex in 0..2 {
+        for i in 0..self.pattern_tables_vis_buffer[0].len() {
+          for j in 0..self.pattern_tables_vis_buffer[0][0].len() {
+            let pixel_color = self.pattern_tables_vis_buffer[tableIndex][i][j];
+  
+            frame.fill_rectangle(
+                Point::new(
+                          (tableIndex as f32) * self.pixel_height * (self.pattern_tables_vis_buffer[0].len() as f32)  + (i as f32) * self.pixel_height as f32,
+                          (j as f32) * self.pixel_height as f32
+                ),
+                Size::new(self.pixel_height, self.pixel_height),
+                pixel_color.to_iced_color(),
+            );
+          }
         }
       }
     });

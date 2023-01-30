@@ -1449,10 +1449,10 @@ pub mod Ben2C02 {
 
     
     // These arrays are used for emulator visualization, thus the higher level Color structure
-    palette_vis_bufer: [Color; 64],
     pub screen_vis_buffer: [[Color; 256]; 240],
+    pub pattern_tables_vis_buffer: [[[Color; 128]; 128]; 2],
     name_tables_vis_buffer: [[[Color; 256]; 240]; 2],
-    pattern_tables_vis_buffer: [[[Color; 128]; 128]; 2],
+    palette_vis_bufer: [Color; 64],
   }
 
   impl Ben2C02 {
