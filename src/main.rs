@@ -240,6 +240,12 @@ impl Application for RustNESs {
             text("IRQ Disable: "),
             text(self.cpu.status.get_irq_disable().to_string())
           ],
+
+          row![
+            text("PPU flags:").size(20),
+            text("Vertical Blank: "),
+            text(self.cpu.bus.PPU.lock().unwrap().status_reg.get_vertical_blank().to_string()),
+          ],
         ]
       ]
     ]

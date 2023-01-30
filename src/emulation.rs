@@ -53,7 +53,7 @@ pub mod Ram {
 
     fn write(&mut self, addr: u16, content: u8) -> Result<(), String> {
       if self.in_memory_bounds(addr) {
-        self.memory[(addr & RAM_SIZE) as usize] = content;
+        self.memory[(addr % RAM_SIZE) as usize] = content;
         return Ok(());
       } else {
         return Err(String::from("Tried to write outside RAM bounds!"));
@@ -62,7 +62,7 @@ pub mod Ram {
 
     fn read(&mut self, addr: u16) -> Result<u8, String> {
       if self.in_memory_bounds(addr) {
-        return Ok(self.memory[(addr & RAM_SIZE) as usize]);
+        return Ok(self.memory[(addr % RAM_SIZE) as usize]);
       } else {
         return Err(String::from("Tried to read outside RAM bounds!"));
       }
@@ -697,21 +697,21 @@ pub mod Ben6502 {
           },
           Instruction::CMP => {
             let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
-            let result = self.registers.a as u16 - operand as u16;
+            let result = (self.registers.a as u16).wrapping_sub(operand as u16);
             self.status.set_carry((self.registers.a >= operand) as u8);
             self.status.set_zero(( (result & 0x00FF) == 0x0000 ) as u8);
             self.status.set_negative((result & 0b10000000 != 0) as u8);
           },
           Instruction::CPX => {
             let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
-            let result = self.registers.x as u16 - operand as u16;
+            let result = (self.registers.x as u16).wrapping_sub(operand as u16);
             self.status.set_carry((self.registers.x >= operand) as u8);
             self.status.set_zero(( (result & 0x00FF) == 0x0000 ) as u8);
             self.status.set_negative((result & 0b10000000 != 0) as u8);
           },
           Instruction::CPY => {
             let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
-            let result = self.registers.y as u16 - operand as u16;
+            let result = (self.registers.y as u16).wrapping_sub(operand as u16);
             self.status.set_carry((self.registers.y >= operand) as u8);
             self.status.set_zero(( (result & 0x00FF) == 0x0000 ) as u8);
             self.status.set_negative((result & 0b10000000 != 0) as u8);
@@ -719,7 +719,7 @@ pub mod Ben6502 {
           Instruction::DEC => {
             let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
             let result = operand.wrapping_sub(1);
-            self.bus.write(self.absolute_mem_address, result);
+            self.bus.write(self.absolute_mem_address, result).unwrap();
   
             self.status.set_zero(( (result & 0x00FF) == 0x0000 ) as u8);
             self.status.set_negative((result & 0b10000000 != 0) as u8);
@@ -745,7 +745,7 @@ pub mod Ben6502 {
           Instruction::INC => {
             let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
             let result = operand + 1;
-            self.bus.write(self.absolute_mem_address, result);
+            self.bus.write(self.absolute_mem_address, result).unwrap();
   
             self.status.set_zero(( (result & 0x00FF) == 0x0000 ) as u8);
             self.status.set_negative((result & 0b10000000 != 0) as u8);
@@ -768,9 +768,9 @@ pub mod Ben6502 {
           Instruction::JSR => {
             self.registers.pc -= 1; // Not sure why we must decrease the PC before storing it in memory
   
-            self.bus.write(STACK_START_ADDR + self.registers.sp as u16, (self.registers.pc >> 8) as u8);
+            self.bus.write(STACK_START_ADDR + self.registers.sp as u16, (self.registers.pc >> 8) as u8).unwrap();
             self.registers.sp -= 1;
-            self.bus.write(STACK_START_ADDR + self.registers.sp as u16, (self.registers.pc & 0xFF) as u8);
+            self.bus.write(STACK_START_ADDR + self.registers.sp as u16, (self.registers.pc & 0xFF) as u8).unwrap();
             self.registers.sp -= 1;
   
             self.registers.pc = self.absolute_mem_address;
@@ -1059,7 +1059,7 @@ pub mod Ben6502 {
         // self.needs_additional_cycle = false;
         self.set_addressing_mode(&next_instruction_data.addressing_mode);
         self.execute_instruction(&next_instruction_data.instruction, &next_instruction_data.addressing_mode);
-        println!("Executed instruction {:?}", &next_instruction_data.instruction);
+        // println!("Executed instruction {:?}", &next_instruction_data.instruction);
         // todo!("We should check if both the set_addressing_mode as well as the execute_instruction functions required more cycles, rather than\
         //       directly increasing the cycle counter inside of those functions. I'm not quite sure how the whole thing works, so I should read up :)");
         // if self.needs_additional_cycle {
@@ -1232,7 +1232,7 @@ pub mod Ben2C02 {
     return buffer;
   }
 
-  struct StatusRegister {
+  pub struct StatusRegister {
     flags: u8
   }
 
@@ -1435,7 +1435,7 @@ pub mod Ben2C02 {
 
     controller_reg: ControllerRegister,
     mask_reg: MaskRegister,
-    status_reg: StatusRegister,
+    pub status_reg: StatusRegister,
     writing_high_byte_of_addr: bool,
     ppu_addr: u16,
     ppu_data_read_buffer: u8,
@@ -1546,6 +1546,7 @@ pub mod Ben2C02 {
                 let pixel_value_msb = bitwise_utils::get_bit(tile_msb_data, 7 - pixelCol);
                 let pixel_value = (pixel_value_msb << 1) + pixel_value_lsb;
                 let pixel_color = self.get_color_from_palette(pixel_value, palette_id);
+                print!("{:?}", pixel_color);
                 self.pattern_tables_vis_buffer[pattern_table_id as usize][(tileIndexCol as u8 * 8 + pixelCol) as usize][(tileIndexRow * 8 + pixelRow) as usize] = pixel_color;
               }
             }
@@ -1634,13 +1635,13 @@ pub mod Ben2C02 {
 
     fn write(&mut self, addr: u16, data: u8) -> Result<(), String> {
       if self.in_memory_bounds(addr) {
-        let mirrored_addr = addr & 0x0007; // Equivalent to doing % 0x0007
+        let mirrored_addr = addr & 0x0007;
         match mirrored_addr {
           0x0 => { // Control
 
           },
           0x1 => { // Mask
-
+            self.mask_reg.flags = data;
           },
           0x2 => { // Status
 
@@ -1679,7 +1680,7 @@ pub mod Ben2C02 {
 
     fn read(&mut self, addr: u16) -> Result<u8, String> {
       if self.in_memory_bounds(addr) {
-        let mirrored_addr = addr & 0x0007; // Equivalent to doing % 0x0007
+        let mirrored_addr = addr & 0x0007;
         match mirrored_addr {
           0x0 => { // Control
             return Ok(0);
@@ -2084,12 +2085,14 @@ pub mod Bus16Bit {
   
     pub fn new(rom_file_path: &str) -> Bus16Bit {
       let ram = Arc::new(Mutex::new(Ram2K::new((0x0000, 0x1FFF))));
+      let apu_mock = Arc::new(Mutex::new(Ram2K::new((0x4000, 0x4017))));
       let cartridge = Arc::new(Mutex::new(create_cartridge_from_ines_file(rom_file_path).unwrap()));
       let PPU = Arc::new(Mutex::new(Ben2C02::new(cartridge.clone())));
       PPU.lock().unwrap().update_pattern_tables_vis_buffer(0);
   
       let mut devices: Vec<Arc<Mutex<dyn Device>>> = vec![];
       devices.push(ram.clone());
+      devices.push(apu_mock.clone());
       devices.push(PPU.clone());
       devices.push(cartridge.clone());
       return Bus16Bit {
@@ -2127,7 +2130,7 @@ pub mod Bus16Bit {
           return device.write(addr, content);
         }
       }
-      return Err(String::from("Error writing to memory bus (No device found in given address)."))
+      return Err(format!("Error writing to memory bus (No device found in given address: 0x{:X}", addr));
     }
   
     pub fn get_memory_content_as_string(&mut self, start_addr: u16, end_addr: u16) -> String {
