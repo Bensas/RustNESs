@@ -184,7 +184,7 @@ Once we have this program, we can test using the following:
 	- PPU Address -> Because it's one byte, the address is passed in two parts
 	- PPU Data
 
-- [PENDING] Complete write() and read() functions setting or getting the value of the registers.
+- Complete write() and read() functions setting or getting the value of the registers.
 	- For the PPU Address and PPU Data registers we take a specific approach:
 		- We have the following variables
 			- `address_high_byte` -> indicates whether we're writing to the low ot the high byte on thw address register
@@ -213,7 +213,7 @@ Once we have this program, we can test using the following:
 	- `if scanline == -1 && cycle == 1)`
 		- `status.vertical_blank = 0`
 
-- [PENDING] On the RustNESs clock() function, we should check if the `nmi` variable is set to true on the PPU, then call the `nmi()` function on the CPU and set `nmi` back to false.
+- On the RustNESs clock() function, we should check if the `nmi` variable is set to true on the PPU, then call the `nmi()` function on the CPU and set `nmi` back to false.
 
 - DOUBT: "reading from the cartridge" in David's implementation is reading from the PPU's internal arrays. I'm not sure when the information from the cartridge is loaded onto those arrays
 	-> I believe this is incorrect. The read() and write() functions on the PPU call the read() and write() functions on the cartridge. Depending on the mapper, these might fail, in which case we will use the PPU's internal arrays, but in the case of Mapper000, we will never even use the PPU's internal memory (when reading pattern tables, at least)
