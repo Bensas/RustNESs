@@ -1532,25 +1532,27 @@ pub mod Ben2C02 {
 
     // Refer to https://www.nesdev.org/wiki/PPU_programmer_reference#Pattern_tables
     // for a clearer explanation :)
-    fn update_pattern_tables_vis_buffer(&mut self, palette_id: u8) {
-      let pattern_table_id = 0; // Start by updating only one pattern table
+    pub fn update_pattern_tables_vis_buffer(&mut self, palette_id: u8) {
       const PATTERN_TABLE_SIZE: u16 = 4096;
-      let start_addr = PATTERN_TABLE_SIZE * pattern_table_id;
-      for tileIndexRow in 0..16 {
-        for tileIndexCol in 0..16 {
-          for pixelRow in 0..8 {
-            let tile_lsb_data = self.read(start_addr + tileIndexCol * 16 + tileIndexRow * 256 + pixelRow).unwrap();
-            let tile_msb_data = self.read(start_addr + tileIndexCol * 16 + tileIndexRow * 256 + pixelRow + 8).unwrap();
-            for pixelCol in 0..8 {
-              let pixel_value_lsb = tile_lsb_data & (0b10000000 >> pixelCol);
-              let pixel_value_msb = tile_msb_data & (0b10000000 >> pixelCol);
-              let pixel_value = (pixel_value_msb << 1) + pixel_value_lsb;
-              let pixel_color = self.get_color_from_palette(pixel_value, palette_id);
-              self.pattern_tables_vis_buffer[pattern_table_id as usize][(tileIndexCol * 8 + pixelCol) as usize][(tileIndexRow * 8 + pixelRow) as usize] = pixel_color;
+      for pattern_table_id in 0..2 {
+        let start_addr = PATTERN_TABLE_SIZE * pattern_table_id;
+        for tileIndexRow in 0..16 {
+          for tileIndexCol in 0..16 {
+            for pixelRow in 0..8 {
+              let tile_lsb_data = self.read_from_ppu_bus(start_addr + tileIndexCol * 16 + tileIndexRow * 256 + pixelRow).unwrap(); // Wrong read function?!
+              let tile_msb_data = self.read_from_ppu_bus(start_addr + tileIndexCol * 16 + tileIndexRow * 256 + pixelRow + 8).unwrap();
+              for pixelCol in 0..8 {
+                let pixel_value_lsb = bitwise_utils::get_bit(tile_lsb_data, 7 - pixelCol);
+                let pixel_value_msb = bitwise_utils::get_bit(tile_msb_data, 7 - pixelCol);
+                let pixel_value = (pixel_value_msb << 1) + pixel_value_lsb;
+                let pixel_color = self.get_color_from_palette(pixel_value, palette_id);
+                self.pattern_tables_vis_buffer[pattern_table_id as usize][(tileIndexCol as u8 * 8 + pixelCol) as usize][(tileIndexRow * 8 + pixelRow) as usize] = pixel_color;
+              }
             }
           }
         }
       }
+      
     }
 
     fn get_color_from_palette(&self, pixel_value: u8, palette_id: u8) -> Color {
@@ -1595,6 +1597,32 @@ pub mod Ben2C02 {
                   name_table, or palette memory bounds!. Provided address was 0x{:X}", addr));
       }
     }
+
+    fn read_from_ppu_bus(&self, addr: u16) -> Result<u8, String> {
+      let read_from_cartridge = self.cartridge.lock().unwrap().read(addr);
+      match read_from_cartridge {
+        Ok(retrieved_data) => {
+          return Ok(retrieved_data);
+        },
+        Err(message) => {
+          println!("Tried to read from cartridge, but failed with error: {}. Reading from PPU internal memory instead :)" , message);
+          return Ok(self.read_from_ppu_memory(self.ppu_addr).unwrap());
+        }
+      }
+    }
+
+    fn write_to_ppu_bus(&mut self, addr: u16, data: u8) -> Result<(), String> {
+      let write_to_cartridge = self.cartridge.lock().unwrap().write(addr, data);
+      match write_to_cartridge {
+        Ok(()) => {
+          return Ok(());
+        },
+        Err(message) => {
+          println!("Tried to write to cartridge, but failed with error: {}. Writing to PPU internal memory instead :)" , message);
+          return Ok(self.write_to_ppu_memory(addr, data).unwrap());
+        }
+      }
+    }
   
   }
 
@@ -1637,14 +1665,7 @@ pub mod Ben2C02 {
             self.writing_high_byte_of_addr = !self.writing_high_byte_of_addr;
           },
           0x7 => { // PPU data
-            let write_to_cartridge = self.cartridge.lock().unwrap().write(addr, data);
-            match write_to_cartridge {
-              Ok(()) => {},
-              Err(message) => {
-                println!("Tried to write to cartridge, but failed with error: {}. Writing to PPU internal memory instead :)" , message);
-                self.write_to_ppu_memory(addr, data).unwrap();
-              }
-            }
+            self.write_to_ppu_bus(self.ppu_addr, data).unwrap();
             self.ppu_addr += 1; // TODO: depending on increment mode, we might want to add 32 bytes instead of 1
             return Ok(());
           },
@@ -1688,20 +1709,9 @@ pub mod Ben2C02 {
             return Ok(0);
           },
           0x7 => { // PPU data
-            let read_result: u8;
-            let read_from_cartridge = self.cartridge.lock().unwrap().read(self.ppu_addr);
-            match read_from_cartridge {
-              Ok(retrieved_data) => {
-                read_result = retrieved_data;
-              },
-              Err(message) => {
-                println!("Tried to read from cartridge, but failed with error: {}. Reading from PPU internal memory instead :)" , message);
-                read_result = self.read_from_ppu_memory(self.ppu_addr).unwrap();
-              }
-            }
+            let read_result = self.read_from_ppu_bus(self.ppu_addr).unwrap();
 
             let return_value : u8;
-
             // Unless reading from palette memory, we return the value that is currently 
             // stored on the read buffer, and then update the buffer with the 
             // data located at self.ppu_addr
@@ -2076,6 +2086,7 @@ pub mod Bus16Bit {
       let ram = Arc::new(Mutex::new(Ram2K::new((0x0000, 0x1FFF))));
       let cartridge = Arc::new(Mutex::new(create_cartridge_from_ines_file(rom_file_path).unwrap()));
       let PPU = Arc::new(Mutex::new(Ben2C02::new(cartridge.clone())));
+      PPU.lock().unwrap().update_pattern_tables_vis_buffer(0);
   
       let mut devices: Vec<Arc<Mutex<dyn Device>>> = vec![];
       devices.push(ram.clone());
