@@ -1501,12 +1501,15 @@ pub mod Ben2C02 {
     pub fn clock_cycle(&mut self) {
 
       let mut rng = rand::thread_rng();
-      self.screen_vis_buffer[self.cycle as usize][self.scan_line as usize] = self.palette_vis_bufer[rng.gen_range(0..(self.palette_vis_bufer.len()-1))]; // Temporary
+      if self.cycle < 256 && self.scan_line < 240 {
+        self.screen_vis_buffer[self.cycle as usize][self.scan_line as usize] = self.palette_vis_bufer[rng.gen_range(0..(self.palette_vis_bufer.len()-1))]; // Temporary
+      }
+        
       self.cycle += 1;
-      if self.cycle >= 240 {
+      if self.cycle > 340 {
         self.cycle = 0;
         self.scan_line += 1;
-        if (self.scan_line >= 256) {
+        if (self.scan_line > 261) {
           self.scan_line = 0;
           self.frame_render_complete = true;
         }
@@ -1641,12 +1644,20 @@ pub mod Ben2C02 {
       if self.in_memory_bounds(addr) {
         let mirrored_addr = addr & 0x0007; // Equivalent to doing % 0x0007
         match mirrored_addr {
-          0x1 => { // Control
+          0x0 => { // Control
+            return Ok(0);
+          },
+          0x1 => { // Mask
             return Ok(0);
 
           },
-          0x2 => { // Mask
-            return Ok(0);
+          0x2 => { // Status
+            // We use the 3 most significant bits of the status register
+            // and the 5 least sifgnificant bits of the data buffer
+            let result = (self.status_reg.flags & 0xE0) + (self.ppu_data_read_buffer & 0x1F);
+            self.status_reg.set_vertical_blank(0);
+            self.writing_high_byte_of_addr = true;
+            return Ok(result);
           },
           0x3 => { // OAM Address
             return Ok(0);
