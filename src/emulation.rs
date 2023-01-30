@@ -10,7 +10,7 @@ pub mod Device {
   pub trait Device {
     fn in_memory_bounds(&self, addr: u16)-> bool;
     fn write(&mut self, addr: u16, data: u8) -> Result<(), String>;
-    fn read(&self, addr: u16) -> Result<u8, String>;
+    fn read(&mut self, addr: u16) -> Result<u8, String>;
   }
 }
 
@@ -60,7 +60,7 @@ pub mod Ram {
       }
     }
 
-    fn read(&self, addr: u16) -> Result<u8, String> {
+    fn read(&mut self, addr: u16) -> Result<u8, String> {
       if self.in_memory_bounds(addr) {
         return Ok(self.memory[(addr & RAM_SIZE) as usize]);
       } else {
@@ -1469,7 +1469,7 @@ pub mod Ben2C02 {
         status_reg: StatusRegister::new(),
         writing_high_byte_of_addr: true,
         ppu_addr: 0,
-        ppu_data: 0,
+        ppu_data_read_buffer: 0,
 
         pattern_tables: [[0; 4096]; 2],
         pattern_tables_mem_bounds: (0x0000, 0x1FFF),
@@ -1501,7 +1501,7 @@ pub mod Ben2C02 {
     pub fn clock_cycle(&mut self) {
 
       let mut rng = rand::thread_rng();
-      if self.cycle < 256 && self.scan_line < 240 {
+      if (self.cycle < 256 && self.scan_line < 240 && self.scan_line != -1) {
         self.screen_vis_buffer[self.cycle as usize][self.scan_line as usize] = self.palette_vis_bufer[rng.gen_range(0..(self.palette_vis_bufer.len()-1))]; // Temporary
       }
         
@@ -1510,9 +1510,20 @@ pub mod Ben2C02 {
         self.cycle = 0;
         self.scan_line += 1;
         if (self.scan_line > 261) {
-          self.scan_line = 0;
+          self.scan_line = -1;
           self.frame_render_complete = true;
         }
+      }
+
+      if (self.scan_line == 241 && self.cycle == 1) {
+        self.status_reg.set_vertical_blank(1);
+        if (self.controller_reg.get_enable_nmi() ==  1) {
+          self.trigger_cpu_nmi = true;
+        }
+      }
+
+      if (self.scan_line == -1 && self.cycle == 1) {
+        self.status_reg.set_vertical_blank(0);
       }
     }
 
@@ -1595,10 +1606,13 @@ pub mod Ben2C02 {
       if self.in_memory_bounds(addr) {
         let mirrored_addr = addr & 0x0007; // Equivalent to doing % 0x0007
         match mirrored_addr {
-          0x1 => { // Control
+          0x0 => { // Control
 
           },
-          0x2 => { // Mask
+          0x1 => { // Mask
+
+          },
+          0x2 => { // Status
 
           },
           0x3 => { // OAM Address
@@ -1640,7 +1654,7 @@ pub mod Ben2C02 {
       }
     }
 
-    fn read(&self, addr: u16) -> Result<u8, String> {
+    fn read(&mut self, addr: u16) -> Result<u8, String> {
       if self.in_memory_bounds(addr) {
         let mirrored_addr = addr & 0x0007; // Equivalent to doing % 0x0007
         match mirrored_addr {
@@ -1999,7 +2013,7 @@ pub mod Cartridge {
       }
     }
 
-    fn read(&self, addr: u16) -> Result<u8, String> {
+    fn read(&mut self, addr: u16) -> Result<u8, String> {
       if self.in_cpu_memory_bounds(addr) {
         // Read operation from CPU
         let mapped_addr_res = self.mapper.mapReadAddressFromCPU(addr);
@@ -2071,9 +2085,9 @@ pub mod Bus16Bit {
       }
     }
   
-    pub fn read(&self, addr: u16, readOnly: bool) -> Result<u8, String> {
+    pub fn read(&mut self, addr: u16, readOnly: bool) -> Result<u8, String> {
       for device_mutex in self.devices.iter() {
-        let device = device_mutex.lock().unwrap();
+        let mut device = device_mutex.lock().unwrap();
         if device.in_memory_bounds(addr) {
           return device.read(addr);
         }
@@ -2103,7 +2117,7 @@ pub mod Bus16Bit {
       return Err(String::from("Error writing to memory bus (No device found in given address)."))
     }
   
-    pub fn get_memory_content_as_string(&self, start_addr: u16, end_addr: u16) -> String {
+    pub fn get_memory_content_as_string(&mut self, start_addr: u16, end_addr: u16) -> String {
       let mut result = String::new();
       // print!("Heeeylkfdslk");
       for curr_addr in start_addr..end_addr {
@@ -2115,7 +2129,7 @@ pub mod Bus16Bit {
       return result;
     }
   
-    pub fn get_memory_content_as_vec(&self, start_addr: u16, end_addr: u16) -> Vec<u8> {
+    pub fn get_memory_content_as_vec(&mut self, start_addr: u16, end_addr: u16) -> Vec<u8> {
       let mut result = vec![];
       for curr_addr in start_addr..end_addr {
         let memory_content = self.read(curr_addr, false).unwrap();

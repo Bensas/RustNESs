@@ -1,3 +1,4 @@
+#![allow(unused_parens)]
 mod emulation;
 use std::cell::RefCell;
 use std::rc::Rc;

@@ -201,12 +201,12 @@ Once we have this program, we can test using the following:
 			- When we read(), we return the current contents of the `ppu_data_read_buffer`, and the data from `ppu_address` is loaded onto that buffer (intead of reading the data form `ppu_address` and returning it directly)
 			- When we're reading from palette range ( > 0x3F00), we read the data at `ppu_address`, load it onto the buffer, and return it immediately.
 			- We also increment the value of `ppu_address`
-	- Status register:
+	- [PENDING] Status register:
 		- read() will change the state of the device
 			- `data = (status.reg & 0xE0) | (ppu_data_buffer & 0x1F)`
 			- `status.vertical_blank = 0`
 			- `address_high_byte = true`
-- [PENDING] clock_cycle() function:
+- clock_cycle() function:
 	- `if scanline == 241 && cycle == 1`
 		- Set vertical_blank flag to 1
 		- If `enable_nmi` is set to 1 in the control register, set the boolean variable `nmi` to true.
