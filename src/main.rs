@@ -51,6 +51,9 @@ impl RustNESs {
       let ppu_mutex = self.cpu.bus.get_PPU();
       let mut ppu_mutex_guard = ppu_mutex.lock().unwrap();
       ppu_mutex_guard.clock_cycle();
+      if (ppu_mutex_guard.trigger_cpu_nmi) {
+        self.cpu.nmi();
+      }
     }
     self.current_cycle += 1;
   }
