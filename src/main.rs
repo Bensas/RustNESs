@@ -68,6 +68,7 @@ enum EmulatorMessage {
   PauseEmulation,
   NextCPUInstruction,
   NextFrame,
+  Run50CPUInstructions,
   EventOccurred(iced_native::Event),
 }
 
@@ -148,6 +149,15 @@ impl Application for RustNESs {
           // }
           
         },
+
+        EmulatorMessage::Run50CPUInstructions => {
+          for i in 0..50 {
+            self.clock_cycle();
+            while (self.cpu.current_instruction_remaining_cycles > 0){
+              self.clock_cycle();
+            }
+          }
+        },
         EmulatorMessage::NextFrame => {
           self.clock_cycle();
           let ppu_mutex = self.cpu.bus.get_PPU();
@@ -166,14 +176,19 @@ impl Application for RustNESs {
           let ppu_mutex = self.cpu.bus.get_PPU();
           let mut ppu_mutex_guard = ppu_mutex.lock().unwrap();
           ppu_mutex_guard.frame_render_complete = false;
+          ppu_mutex_guard.update_pattern_tables_vis_buffer(0);
           drop(ppu_mutex_guard);
           drop(ppu_mutex);
         },
         EmulatorMessage::EventOccurred(event) => {
           match event {
             Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Space, modifiers }) => {
-              println!("Spacebar pressed!");
+              println!("Spacebar (For run 1 cpu instruction) pressed!");
               self.update(EmulatorMessage::NextCPUInstruction);
+            },
+            Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Enter, modifiers }) => {
+              println!("Enter(For run 10 cpu instructions) pressed!");
+              self.update(EmulatorMessage::Run50CPUInstructions);
             },
             Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::F, modifiers }) => {
               println!("F(For next Frame) pressed!");
@@ -186,7 +201,7 @@ impl Application for RustNESs {
       }
     }
     self.mem_visualizer.update(&mut self.cpu);
-    self.ppu_screen_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
+    // self.ppu_screen_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
     self.ppu_pattern_tables_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
     Command::none()
     

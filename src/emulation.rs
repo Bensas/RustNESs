@@ -912,6 +912,7 @@ pub mod Ben6502 {
           Instruction::RTS => {
             self.registers.sp += 1;
             self.registers.pc = self.bus.read_word_little_endian(STACK_START_ADDR + self.registers.sp as u16, false).unwrap();
+            self.registers.sp += 1;
             self.registers.pc += 1;
           },
           Instruction::SBC => {
@@ -928,7 +929,7 @@ pub mod Ben6502 {
             self.status.set_overflow(( ((self.registers.a as u16 ^ result as u16) & (inverted_value as u16 ^ result as u16) & 0b10000000) != 0) as u8); 
             
             self.registers.a = (result & 0x00FF) as u8;
-            todo!("Might require an additional clock cycle :S");
+            // todo!("Might require an additional clock cycle :S");
           },
           Instruction::SEC => {
             self.status.set_carry(1);
@@ -1638,7 +1639,7 @@ pub mod Ben2C02 {
         let mirrored_addr = addr & 0x0007;
         match mirrored_addr {
           0x0 => { // Control
-
+            self.controller_reg.flags = data;
           },
           0x1 => { // Mask
             self.mask_reg.flags = data;
@@ -1683,10 +1684,10 @@ pub mod Ben2C02 {
         let mirrored_addr = addr & 0x0007;
         match mirrored_addr {
           0x0 => { // Control
-            return Ok(0);
+            return Ok(self.controller_reg.flags);
           },
           0x1 => { // Mask
-            return Ok(0);
+            return Ok(self.mask_reg.flags);
 
           },
           0x2 => { // Status
@@ -2022,7 +2023,7 @@ pub mod Cartridge {
           }
         }        
       } else {
-        return Err(String::from("Tried to read outside Cartridge bounds!"));
+        return Err(format!("Tried to write outside Cartridge bounds! Address: 0x{:X}", addr));
       }
     }
 
@@ -2052,7 +2053,7 @@ pub mod Cartridge {
           }
         }
       } else {
-        return Err(String::from("Tried to read outside Cartridge bounds!"));
+        return Err(format!("Tried to read outside Cartridge bounds! Address: 0x{:X}", addr));
       }
     }
   }
@@ -2088,7 +2089,6 @@ pub mod Bus16Bit {
       let apu_mock = Arc::new(Mutex::new(Ram2K::new((0x4000, 0x4017))));
       let cartridge = Arc::new(Mutex::new(create_cartridge_from_ines_file(rom_file_path).unwrap()));
       let PPU = Arc::new(Mutex::new(Ben2C02::new(cartridge.clone())));
-      PPU.lock().unwrap().update_pattern_tables_vis_buffer(0);
   
       let mut devices: Vec<Arc<Mutex<dyn Device>>> = vec![];
       devices.push(ram.clone());
@@ -2108,7 +2108,8 @@ pub mod Bus16Bit {
           return device.read(addr);
         }
       }
-      return Err(String::from(format!("Error reading from memory bus (No device found in given address: 0x{:x}).", addr)));
+      return Ok(0);
+      // return Err(String::from(format!("Error reading from memory bus (No device found in given address: 0x{:x}).", addr)));
     }
   
     pub fn read_word_little_endian(&mut self, addr: u16, readOnly: bool) -> Result<u16, String> {
@@ -2130,7 +2131,8 @@ pub mod Bus16Bit {
           return device.write(addr, content);
         }
       }
-      return Err(format!("Error writing to memory bus (No device found in given address: 0x{:X}", addr));
+      return Ok(());
+      // return Err(format!("Error writing to memory bus (No device found in given address: 0x{:X}", addr));
     }
   
     pub fn get_memory_content_as_string(&mut self, start_addr: u16, end_addr: u16) -> String {
