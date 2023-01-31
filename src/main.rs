@@ -29,8 +29,8 @@ fn main() {
 }
 
 const EMULATOR_CYCLES_PER_SECOND: u64 = 10;
-const SCREEN_PIXEL_HEIGHT: f32 = 10.0;
-const SCREEN_HEIGHT: u16 = 300;
+const SCREEN_HEIGHT: u16 = 800;
+const PATTERN_TABLE_VIS_HEIGHT: u16 = 300;
 
 struct RustNESs {
   cpu: Ben6502,
@@ -98,16 +98,16 @@ impl Application for RustNESs {
               ppu_screen_buffer_visualizer: PPUScreenBufferVisualizer {
                 screen_vis_buffer: [[emulation::graphics::Color::new(0, 0, 0); 256]; 240],
                 canvas_cache: Cache::default(),
-                pixel_height: SCREEN_PIXEL_HEIGHT
+                pixel_height: f32::from(SCREEN_HEIGHT) / 240.0
               },
               ppu_pattern_tables_buffer_visualizer: PPUPatternTableBufferVisualizer {
                 pattern_tables_vis_buffer: [[[emulation::graphics::Color::new(0, 0, 0); 128]; 128]; 2],
                 canvas_cache: Cache::default(),
-                pixel_height: SCREEN_PIXEL_HEIGHT
+                pixel_height: f32::from(PATTERN_TABLE_VIS_HEIGHT) / 128.0
               },
               mem_visualizer: MemoryVisualizer {
-                ram_start_addr: 0x00,
-                ram_end_addr: 0x50,
+                ram_start_addr: 0xC0,
+                ram_end_addr: 0x100,
                 pc_start_addr:0x8000,
                 pc_end_addr: 0x8010,
                 stack_start_addr: 0x100 + emulation::Ben6502::SP_RESET_ADDR as u16 - 100,
@@ -201,7 +201,13 @@ impl Application for RustNESs {
       }
     }
     self.mem_visualizer.update(&mut self.cpu);
-    // self.ppu_screen_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
+
+    let ppu_mutex = self.cpu.bus.get_PPU();
+    let mut ppu_mutex_guard = ppu_mutex.lock().unwrap();
+    ppu_mutex_guard.update_pattern_tables_vis_buffer(0);
+    drop(ppu_mutex_guard);
+    drop(ppu_mutex);
+    self.ppu_screen_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
     self.ppu_pattern_tables_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
     Command::none()
     
@@ -401,8 +407,8 @@ struct PPUPatternTableBufferVisualizer {
 impl PPUPatternTableBufferVisualizer {
   pub fn view(&self) -> Element<EmulatorMessage> {
     Canvas::new(self)
-        .width(Length::Units(SCREEN_HEIGHT * 2))
-        .height(Length::Units(SCREEN_HEIGHT))
+        .width(Length::Units(PATTERN_TABLE_VIS_HEIGHT * 2))
+        .height(Length::Units(PATTERN_TABLE_VIS_HEIGHT))
         .into()
   }
 
