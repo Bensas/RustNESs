@@ -1547,7 +1547,6 @@ pub mod Ben2C02 {
                 let pixel_value_msb = bitwise_utils::get_bit(tile_msb_data, 7 - pixelCol);
                 let pixel_value = (pixel_value_msb << 1) + pixel_value_lsb;
                 let pixel_color = self.get_color_from_palette(pixel_value, palette_id);
-                print!("{:?}", pixel_color);
                 self.pattern_tables_vis_buffer[pattern_table_id as usize][(tileIndexCol as u8 * 8 + pixelCol) as usize][(tileIndexRow * 8 + pixelRow) as usize] = pixel_color;
               }
             }
@@ -1572,7 +1571,8 @@ pub mod Ben2C02 {
         return Ok(());
       }
       else if self.in_palette_memory_bounds(addr) {
-        // TODO: implement
+        // Address space is $3F00-$3F1F, mirrored in the range $3F00-$3FFF
+        self.palette[((addr & 0x0FF) % 32) as usize] = data;
         return Ok(());
       }
       else {
@@ -1591,8 +1591,8 @@ pub mod Ben2C02 {
         return Ok(0);
       }
       else if self.in_palette_memory_bounds(addr) {
-        // TODO: implement
-        return Ok(0);
+        let data = self.palette[((addr & 0x0FF) % 32) as usize];
+        return Ok(data);
       }
       else {
         return  Err(format!("Tried reading from PPU memory, but provided address wasn't within pattern_table,
@@ -2137,10 +2137,8 @@ pub mod Bus16Bit {
   
     pub fn get_memory_content_as_string(&mut self, start_addr: u16, end_addr: u16) -> String {
       let mut result = String::new();
-      // print!("Heeeylkfdslk");
       for curr_addr in start_addr..end_addr {
         let memory_content = self.read(curr_addr, false).unwrap();
-        // print!("{}", memory_content);
         result.push_str(&hex_utils::decimal_byte_to_hex_str(memory_content));
         result.push_str(" ");
       }
