@@ -324,7 +324,11 @@ impl MemoryVisualizer {
   fn update(&mut self, cpu: &mut Ben6502) {
 
     self.pc_start_addr = cpu.registers.pc;
-    self.pc_end_addr = cpu.registers.pc + 16;
+    if ((cpu.registers.pc as u32 + 16) <= u16::MAX.into()) {
+      self.pc_end_addr = cpu.registers.pc + 16;
+    } else {
+      self.pc_end_addr = self.pc_start_addr;
+    }
 
     self.stack_start_addr = emulation::Ben6502::STACK_START_ADDR + cpu.registers.sp as u16 - 40;
     self.stack_end_addr = emulation::Ben6502::STACK_START_ADDR + cpu.registers.sp as u16 + 1;

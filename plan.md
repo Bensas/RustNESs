@@ -144,7 +144,7 @@ Once we have this program, we can test using the following:
 - Use Canvas widget with `fill_rectangle` to draw pixels
 - Add function that calls main clock() function until PPU has completed drawing frame and then sets the boolean to false again
 
-# Phase 5: PPU Land 1: Basic functionality and pattern tables
+# Phase 5: PPU Land 1: Basic functionality and pattern tables [COMPLETE]
 
 - Function to read the patter tables from the PPU (which might read it from the cartridge) and load it onto our visualization buffer
 	- Each table is 4kb long
@@ -216,12 +216,12 @@ Once we have this program, we can test using the following:
 - On the RustNESs clock() function, we should check if the `nmi` variable is set to true on the PPU, then call the `nmi()` function on the CPU and set `nmi` back to false.
 
 - DOUBT: "reading from the cartridge" in David's implementation is reading from the PPU's internal arrays. I'm not sure when the information from the cartridge is loaded onto those arrays
-	-> I believe this is incorrect. The read() and write() functions on the PPU call the read() and write() functions on the cartridge. Depending on the mapper, these might fail, in which case we will use the PPU's internal arrays, but in the case of Mapper000, we will never even use the PPU's internal memory (when reading pattern tables, at least)
+	-> I believe this is incorrect. The read() and write() functions on the PPU call the read() and write() functions on the cartridge. Depending on the mapper, these might fail, in which case we will use the PPU's internal arrays. In the case of Mapper000, fro example, we will never use the PPU's internal memory for reading pattern table information, but we will store name table and palette information on the PPU's internal memory (done through the PPU's `data` register).
 
 
 ## Phase 5.5: testing pattern tables
 - [PENDING] Visualization for Pattern tables in GUI, allowing the user to select the palette (value between 0 and 7) by pressing the "p" key, which increments the value ans wraps around.
-- [PENDING] Try loading `nestest.nes`, maybe other games, veryifying that we can see patterns and palettes.
+- Try loading `nestest.nes`, maybe other games, veryifying that we can see patterns and palettes.
 
 
 # Phase 5: PPU Land 2: Name tables

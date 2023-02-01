@@ -751,13 +751,13 @@ pub mod Ben6502 {
             self.status.set_negative((result & 0b10000000 != 0) as u8);
           },
           Instruction::INX => {
-            self.registers.x += 1;
+            self.registers.x = self.registers.x.wrapping_add(1);
   
             self.status.set_zero(( (self.registers.x & 0x00FF) == 0x0000 ) as u8);
             self.status.set_negative((self.registers.x & 0b10000000 != 0) as u8);
           },
           Instruction::INY => {
-            self.registers.y += 1;
+            self.registers.y = self.registers.y.wrapping_add(1);
   
             self.status.set_zero(( (self.registers.y & 0x00FF) == 0x0000 ) as u8);
             self.status.set_negative((self.registers.y & 0b10000000 != 0) as u8);
@@ -1030,7 +1030,7 @@ pub mod Ben6502 {
     }
   
     pub fn nmi(&mut self) {
-  
+
       self.bus.write(STACK_START_ADDR + self.registers.sp as u16, ((self.registers.pc >> 8) & 0xFF) as u8).unwrap();
       self.registers.sp -= 1;
       self.bus.write(STACK_START_ADDR + self.registers.sp as u16, ( self.registers.pc       & 0xFF) as u8).unwrap();
