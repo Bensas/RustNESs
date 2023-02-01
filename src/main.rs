@@ -54,6 +54,10 @@ impl RustNESs {
       let mut ppu_mutex_guard = ppu_mutex.lock().unwrap();
       ppu_mutex_guard.clock_cycle();
       if (ppu_mutex_guard.trigger_cpu_nmi) {
+        // println!("PPU triggered CPU nmi!");
+        ppu_mutex_guard.trigger_cpu_nmi = false;
+        drop(ppu_mutex_guard);
+        drop(ppu_mutex);
         self.cpu.nmi();
       }
     }
@@ -69,6 +73,8 @@ enum EmulatorMessage {
   NextCPUInstruction,
   NextFrame,
   Run50CPUInstructions,
+
+  PatternTablePaletteCycle,
   EventOccurred(iced_native::Event),
 }
 
@@ -81,7 +87,7 @@ impl Application for RustNESs {
   type Flags = ();
 
   fn new(flags: Self::Flags) -> (RustNESs, iced::Command<EmulatorMessage>) {
-    let rom_file_path = "src/test_roms/nestest.nes";
+    let rom_file_path = "src/test_roms/smb.nes";
 
 
     let mut cpu_bus = Bus16Bit::new(rom_file_path);
@@ -102,6 +108,7 @@ impl Application for RustNESs {
               },
               ppu_pattern_tables_buffer_visualizer: PPUPatternTableBufferVisualizer {
                 pattern_tables_vis_buffer: [[[emulation::graphics::Color::new(0, 0, 0); 128]; 128]; 2],
+                pattern_table_vis_palette_id: 0,
                 canvas_cache: Cache::default(),
                 pixel_height: f32::from(PATTERN_TABLE_VIS_HEIGHT) / 128.0
               },
@@ -151,7 +158,7 @@ impl Application for RustNESs {
         },
 
         EmulatorMessage::Run50CPUInstructions => {
-          for i in 0..50 {
+          for i in 0..600 {
             self.clock_cycle();
             while (self.cpu.current_instruction_remaining_cycles > 0){
               self.clock_cycle();
@@ -176,10 +183,20 @@ impl Application for RustNESs {
           let ppu_mutex = self.cpu.bus.get_PPU();
           let mut ppu_mutex_guard = ppu_mutex.lock().unwrap();
           ppu_mutex_guard.frame_render_complete = false;
-          ppu_mutex_guard.update_pattern_tables_vis_buffer(0);
+          ppu_mutex_guard.update_pattern_tables_vis_buffer(self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id);
           drop(ppu_mutex_guard);
           drop(ppu_mutex);
         },
+        EmulatorMessage::PatternTablePaletteCycle => {
+          self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id += 1;
+          if self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id > 7 {
+            self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id = 0;
+          }
+          println!("Changed palette ID to {}", self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id);
+        },
+
+
+
         EmulatorMessage::EventOccurred(event) => {
           match event {
             Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Space, modifiers }) => {
@@ -194,6 +211,11 @@ impl Application for RustNESs {
               println!("F(For next Frame) pressed!");
               self.update(EmulatorMessage::NextFrame);
             },
+            Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::P, modifiers }) => {
+              println!("P(cycle palette color) pressed!");
+              self.update(EmulatorMessage::PatternTablePaletteCycle);
+            },
+
             _ => {
 
             }
@@ -401,7 +423,8 @@ impl canvas::Program<EmulatorMessage> for PPUScreenBufferVisualizer {
 struct PPUPatternTableBufferVisualizer {
   pattern_tables_vis_buffer: [[[emulation::graphics::Color; 128]; 128]; 2],
   canvas_cache: Cache,
-  pixel_height: f32
+  pixel_height: f32,
+  pattern_table_vis_palette_id: u8
 }
 
 impl PPUPatternTableBufferVisualizer {
