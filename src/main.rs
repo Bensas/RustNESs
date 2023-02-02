@@ -87,7 +87,7 @@ impl Application for RustNESs {
   type Flags = ();
 
   fn new(flags: Self::Flags) -> (RustNESs, iced::Command<EmulatorMessage>) {
-    let rom_file_path = "src/test_roms/smb.nes";
+    let rom_file_path = "src/test_roms/nestest.nes";
 
 
     let mut cpu_bus = Bus16Bit::new(rom_file_path);
@@ -192,7 +192,6 @@ impl Application for RustNESs {
           if self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id > 7 {
             self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id = 0;
           }
-          println!("Changed palette ID to {}", self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id);
         },
 
 
@@ -226,7 +225,7 @@ impl Application for RustNESs {
 
     let ppu_mutex = self.cpu.bus.get_PPU();
     let mut ppu_mutex_guard = ppu_mutex.lock().unwrap();
-    ppu_mutex_guard.update_pattern_tables_vis_buffer(0);
+    ppu_mutex_guard.update_pattern_tables_vis_buffer(self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id);
     drop(ppu_mutex_guard);
     drop(ppu_mutex);
     self.ppu_screen_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
