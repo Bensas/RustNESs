@@ -29,8 +29,10 @@ fn main() {
 }
 
 const EMULATOR_CYCLES_PER_SECOND: u64 = 10;
-const SCREEN_HEIGHT: u16 = 800;
+const SCREEN_HEIGHT: u16 = 500;
 const PATTERN_TABLE_VIS_HEIGHT: u16 = 300;
+const PALETTE_VIS_HEIGHT: u16 = 30;
+const PALETTE_VIS_WIDTH: u16 = 240;
 
 struct RustNESs {
   cpu: Ben6502,
@@ -41,6 +43,8 @@ struct RustNESs {
 
   ppu_screen_buffer_visualizer: PPUScreenBufferVisualizer,
   ppu_pattern_tables_buffer_visualizer: PPUPatternTableBufferVisualizer,
+  ppu_palette_visualizer: PPUPaletteVisualizer,
+
 
   mem_visualizer: MemoryVisualizer
 }
@@ -111,6 +115,11 @@ impl Application for RustNESs {
                 pattern_table_vis_palette_id: 0,
                 canvas_cache: Cache::default(),
                 pixel_height: f32::from(PATTERN_TABLE_VIS_HEIGHT) / 128.0
+              },
+              ppu_palette_visualizer: PPUPaletteVisualizer {
+                palette: [emulation::graphics::Color::new(0, 0, 0); 32],
+                canvas_cache: Cache::default(),
+                pixel_height: f32::from(PALETTE_VIS_WIDTH) / 32.0
               },
               mem_visualizer: MemoryVisualizer {
                 ram_start_addr: 0xC0,
@@ -230,6 +239,7 @@ impl Application for RustNESs {
     drop(ppu_mutex);
     self.ppu_screen_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
     self.ppu_pattern_tables_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
+    self.ppu_palette_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
     Command::none()
     
   }
@@ -241,11 +251,12 @@ impl Application for RustNESs {
 
       self.ppu_screen_buffer_visualizer.view(),
       self.ppu_pattern_tables_buffer_visualizer.view(),
-
+      self.ppu_palette_visualizer.view(),
       ],
 
       // Contains Memory visualizer and CPU+PPU status visualizers  
       row![
+
 
         // MemoryVisualizer
         self.mem_visualizer.view(),
@@ -422,6 +433,61 @@ impl canvas::Program<EmulatorMessage> for PPUScreenBufferVisualizer {
     vec![pixel_grid]
   }
 }
+
+struct PPUPaletteVisualizer {
+  palette: [emulation::graphics::Color; 32],
+  canvas_cache: Cache,
+  pixel_height: f32
+}
+
+impl PPUPaletteVisualizer {
+  pub fn view(&self) -> Element<EmulatorMessage> {
+    Canvas::new(self)
+        .width(Length::Units(PALETTE_VIS_WIDTH))
+        .height(Length::Units(PALETTE_VIS_HEIGHT))
+        .into()
+  }
+
+  pub fn update_data(&mut self, ppu: &Ben2C02) {
+    // Every time we update, I'm copying the contents of the PPU buffer
+    // onto the buffer of the Visualizer. This is awful, but I can't 
+    // figure out lifetimes well enough to directly reference the PPU buffer :/
+    // TODO: Reference PPU buffer directly
+    for i in 0..ppu.palette.len() {
+      self.palette[i] = ppu.palette_vis_bufer[ppu.palette[i] as usize];
+    }
+    self.canvas_cache.clear();
+  }
+}
+
+
+impl canvas::Program<EmulatorMessage> for PPUPaletteVisualizer {
+  type State = ();
+
+  fn draw(
+      &self,
+      _state: &Self::State,
+      _theme: &Theme,
+      bounds: Rectangle,
+      cursor: Cursor,
+  ) -> Vec<Geometry> {
+
+    let pixel_grid = self.canvas_cache.draw(bounds.size(), |frame| {
+      for i in 0..self.palette.len() {
+        let pixel_color = self.palette[i];
+
+        frame.fill_rectangle(
+            Point::new((i as f32) * self.pixel_height as f32, 0.0),
+            Size::new(self.pixel_height, self.pixel_height),
+            pixel_color.to_iced_color(),
+        );
+      }
+    });
+    vec![pixel_grid]
+  }
+}
+
+
 
 struct PPUPatternTableBufferVisualizer {
   pattern_tables_vis_buffer: [[[emulation::graphics::Color; 128]; 128]; 2],

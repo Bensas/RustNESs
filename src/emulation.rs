@@ -1445,7 +1445,7 @@ pub mod Ben2C02 {
     pattern_tables_mem_bounds: (u16, u16),
     name_tables: [[u8; 1024]; 2],
     name_tables_mem_bounds: (u16, u16),
-    palette: [u8; 32],
+    pub palette: [u8; 32],
     palette_mem_bounds: (u16, u16),
 
     
@@ -1453,7 +1453,7 @@ pub mod Ben2C02 {
     pub screen_vis_buffer: [[Color; 256]; 240],
     pub pattern_tables_vis_buffer: [[[Color; 128]; 128]; 2],
     name_tables_vis_buffer: [[[Color; 256]; 240]; 2],
-    palette_vis_bufer: [Color; 64],
+    pub palette_vis_bufer: [Color; 64],
   }
 
   impl Ben2C02 {
@@ -1540,7 +1540,7 @@ pub mod Ben2C02 {
         for tileIndexRow in 0..16 {
           for tileIndexCol in 0..16 {
             for pixelRow in 0..8 {
-              let tile_lsb_data = self.read_from_ppu_bus(start_addr + tileIndexCol * 16 + tileIndexRow * 256 + pixelRow).unwrap(); // Wrong read function?!
+              let tile_lsb_data = self.read_from_ppu_bus(start_addr + tileIndexCol * 16 + tileIndexRow * 256 + pixelRow).unwrap();
               let tile_msb_data = self.read_from_ppu_bus(start_addr + tileIndexCol * 16 + tileIndexRow * 256 + pixelRow + 8).unwrap();
               for pixelCol in 0..8 {
                 let pixel_value_lsb = bitwise_utils::get_bit(tile_lsb_data, 7 - pixelCol);
