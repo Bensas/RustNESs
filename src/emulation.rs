@@ -857,8 +857,8 @@ pub mod Ben6502 {
             self.status.set_negative((self.registers.a & 0b10000000 != 0) as u8);
           },
           Instruction::PLP => {
-            self.status.flags = self.bus.read(STACK_START_ADDR + self.registers.sp as u16, false).unwrap();
             self.registers.sp += 1;
+            self.status.flags = self.bus.read(STACK_START_ADDR + self.registers.sp as u16, false).unwrap();
           },
           Instruction::ROL => {
             let operand;
