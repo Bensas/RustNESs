@@ -219,12 +219,12 @@ Once we have this program, we can test using the following:
 	-> I believe this is incorrect. The read() and write() functions on the PPU call the read() and write() functions on the cartridge. Depending on the mapper, these might fail, in which case we will use the PPU's internal arrays. In the case of Mapper000, fro example, we will never use the PPU's internal memory for reading pattern table information, but we will store name table and palette information on the PPU's internal memory (done through the PPU's `data` register).
 
 
-## Phase 5.5: testing pattern tables [COMPLETE, only with nestest]
+## Phase 5.5: testing pattern tables [COMPLETE]
 - Visualization for Pattern tables in GUI, allowing the user to select the palette (value between 0 and 7) by pressing the "p" key, which increments the value ans wraps around.
 - Try loading `nestest.nes`, maybe other games, veryifying that we can see patterns and palettes.
 
 
-# Phase 5: PPU Land 2: Name tables
+# Phase 6: PPU Land 2: Name tables
 
 
 - Incrementing the `ppu_address` variable should depend on the value of the control register.
