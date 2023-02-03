@@ -1039,7 +1039,7 @@ pub mod Ben6502 {
       // On reset, the cpu goes to a hard-wired address, takes a pointer
       // from that address (2 bytes), and sets the PC to the address specified
       self.registers.pc = self.bus.read_word_little_endian(PROGRAM_START_POINTER_ADDR, false).unwrap();
-      self.registers.pc = 0xC000; // THIS LINE USED ONLY FOR NESTEST, TODO: Remove after testing is done :)
+      // self.registers.pc = 0xC000; // THIS LINE USED ONLY FOR NESTEST, TODO: Remove after testing is done :)
   
       self.absolute_mem_address = 0x0;
       self.relative_mem_address = 0x0;

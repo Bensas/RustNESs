@@ -91,7 +91,7 @@ impl Application for RustNESs {
   type Flags = ();
 
   fn new(flags: Self::Flags) -> (RustNESs, iced::Command<EmulatorMessage>) {
-    let rom_file_path = "src/test_roms/nestest.nes";
+    let rom_file_path = "src/test_roms/smb.nes";
 
 
     let mut cpu_bus = Bus16Bit::new(rom_file_path);
