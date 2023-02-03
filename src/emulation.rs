@@ -554,7 +554,7 @@ pub mod Ben6502 {
           Instruction::ASL => {
             let operand;
   
-            if matches!(addr_mode, AddressingMode::IMP) {
+            if matches!(addr_mode, AddressingMode::IMP) || matches!(addr_mode, AddressingMode::ACC) {
               operand = self.registers.a;
             } else {
               operand = self.bus.read(self.absolute_mem_address, false).unwrap();
@@ -563,7 +563,7 @@ pub mod Ben6502 {
             self.status.set_carry((result & 0xFF00 != 0) as u8);
             self.status.set_zero((result & 0xFF == 0) as u8);
             self.status.set_negative(((result & 0b10000000) != 0) as u8);
-            if matches!(addr_mode, AddressingMode::IMP) {
+            if matches!(addr_mode, AddressingMode::IMP) || matches!(addr_mode, AddressingMode::ACC) {
               self.registers.a = (result & 0xFF) as u8;
             } else {
               self.bus.write(self.absolute_mem_address, (result & 0xFF) as u8).unwrap();
@@ -608,7 +608,7 @@ pub mod Ben6502 {
   
             self.status.set_zero(( (result & 0xFF) == 0) as u8);
             self.status.set_negative(((operand & 0b10000000) != 0) as u8);
-            self.status.set_overflow(((operand & 0b01000000) != 0) as u8);
+            self.status.set_overflow(((operand & 0b01000000) != 0) as u8); // TODO: This doesn't quite make sense to me, I should come back and check it.
           },
           Instruction::BMI => {
             if (self.status.get_negative() == 1) {
@@ -804,7 +804,7 @@ pub mod Ben6502 {
           Instruction::LSR => {
             let operand;
   
-            if matches!(addr_mode, AddressingMode::IMP) {
+            if matches!(addr_mode, AddressingMode::IMP) || matches!(addr_mode, AddressingMode::ACC) {
               operand = self.registers.a;
             } else {
               operand = self.bus.read(self.absolute_mem_address, false).unwrap();
@@ -815,7 +815,7 @@ pub mod Ben6502 {
   
             self.status.set_zero(( (result & 0xFF) == 0) as u8);
             self.status.set_negative(((result & 0b10000000) != 0) as u8);
-            if matches!(addr_mode, AddressingMode::IMP) {
+            if matches!(addr_mode, AddressingMode::IMP) || matches!(addr_mode, AddressingMode::ACC) {
               self.registers.a = (result & 0xFF) as u8;
             } else {
               self.bus.write(self.absolute_mem_address, (result & 0xFF) as u8).unwrap();
@@ -863,7 +863,7 @@ pub mod Ben6502 {
           Instruction::ROL => {
             let operand;
   
-            if matches!(addr_mode, AddressingMode::IMP) {
+            if matches!(addr_mode, AddressingMode::IMP) || matches!(addr_mode, AddressingMode::ACC) {
               operand = self.registers.a;
             } else {
               operand = self.bus.read(self.absolute_mem_address, false).unwrap();
@@ -875,7 +875,7 @@ pub mod Ben6502 {
             self.status.set_zero(( (result & 0xFF) == 0) as u8);
             self.status.set_negative(((result & 0b10000000) != 0) as u8);
   
-            if matches!(addr_mode, AddressingMode::IMP) {
+            if matches!(addr_mode, AddressingMode::IMP) || matches!(addr_mode, AddressingMode::ACC) {
               self.registers.a = (result & 0xFF) as u8;
             } else {
               self.bus.write(self.absolute_mem_address, (result & 0xFF) as u8).unwrap();
@@ -884,7 +884,7 @@ pub mod Ben6502 {
           Instruction::ROR => {
             let operand;
   
-            if matches!(addr_mode, AddressingMode::IMP) {
+            if matches!(addr_mode, AddressingMode::IMP) || matches!(addr_mode, AddressingMode::ACC) {
               operand = self.registers.a;
             } else {
               operand = self.bus.read(self.absolute_mem_address, false).unwrap();
@@ -896,7 +896,7 @@ pub mod Ben6502 {
             self.status.set_zero(( (result & 0xFF) == 0) as u8);
             self.status.set_negative(((result & 0b10000000) != 0) as u8);
   
-            if matches!(addr_mode, AddressingMode::IMP) {
+            if matches!(addr_mode, AddressingMode::IMP) || matches!(addr_mode, AddressingMode::ACC) {
               self.registers.a = (result & 0xFF) as u8;
             } else {
               self.bus.write(self.absolute_mem_address, (result & 0xFF) as u8).unwrap();
