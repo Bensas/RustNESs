@@ -549,7 +549,7 @@ pub mod Ben6502 {
             let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
             self.registers.a = self.registers.a & operand;
             self.status.set_zero((self.registers.a == 0) as u8);
-            self.status.set_negative((self.registers.a == 0b10000000) as u8);
+            self.status.set_negative(((self.registers.a & 0b10000000) != 0) as u8);
           },
           Instruction::ASL => {
             let operand;
