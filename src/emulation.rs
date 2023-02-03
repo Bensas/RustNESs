@@ -892,7 +892,7 @@ pub mod Ben6502 {
   
             let result = ((self.status.get_carry() as u16) << 7) | ((operand as u16) >> 1);
   
-            self.status.set_carry(((result & 0x01) != 0) as u8);
+            self.status.set_carry(((operand & 0x01) != 0) as u8);
             self.status.set_zero(( (result & 0xFF) == 0) as u8);
             self.status.set_negative(((result & 0b10000000) != 0) as u8);
   
