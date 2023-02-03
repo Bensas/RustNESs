@@ -533,7 +533,7 @@ pub mod Ben6502 {
     }
   
   
-    fn execute_instruction(&mut self, instruction: &Instruction, addr_mode: &AddressingMode) {
+    fn execute_instruction(&mut self, instruction: &Instruction, addr_mode: &AddressingMode, opcode: u8) {
   
       match instruction {
           Instruction::ADC => {
@@ -985,6 +985,42 @@ pub mod Ben6502 {
           },
           Instruction::XXX => {
             // Illegal opcode (no action)
+            // Some of these opcodes require that we increase the PC to skip over data that comes with them
+            match opcode {
+              0x0C | 0x1C | 0x3C | 0x5C | 0x7C | 0xDC | 0xFC => {
+                self.registers.pc += 2;
+              },
+              0x04 | 0x44 | 0x64 | 0x14 | 0x34 | 0x54 | 0x74 | 0xD4 | 0xF4 | 0x80 => {
+                self.registers.pc += 1;
+              },
+              0xA3 => { // LAX instruction
+                self.registers.pc += 1;
+              },
+              0xC3 => { // DCP instruction
+                self.registers.pc += 1;
+              },
+              0xE3 => { // ISB instruction
+                self.registers.pc += 1;
+              },
+              0x23 => { // RLA instruction
+                self.registers.pc += 1;
+              },
+              0x63 => { // RRA instruction
+                self.registers.pc += 1;
+              },
+              0x83 => { // SAX instruction
+                self.registers.pc += 1;
+              },
+              0x03 => { // SLO instruction
+                self.registers.pc += 1;
+              },
+              0x43 => { // SRE instruction
+                self.registers.pc += 1;
+              },
+              _ => {
+
+              }
+            }
           },
       }
   
@@ -1066,7 +1102,7 @@ pub mod Ben6502 {
         self.current_instruction_remaining_cycles = next_instruction_data.cycles;
         // self.needs_additional_cycle = false;
         self.set_addressing_mode(&next_instruction_data.addressing_mode);
-        self.execute_instruction(&next_instruction_data.instruction, &next_instruction_data.addressing_mode);
+        self.execute_instruction(&next_instruction_data.instruction, &next_instruction_data.addressing_mode, next_instruction_code);
         // println!("Executed instruction {:?}", &next_instruction_data.instruction);
         // todo!("We should check if both the set_addressing_mode as well as the execute_instruction functions required more cycles, rather than\
         //       directly increasing the cycle counter inside of those functions. I'm not quite sure how the whole thing works, so I should read up :)");
