@@ -157,6 +157,8 @@ impl Application for RustNESs {
           while (self.cpu.current_instruction_remaining_cycles > 0){
             self.clock_cycle();
           }
+
+          // println!("0x{:X}", self.cpu.registers.pc);
           
           // // TODO: verify that this is how the cycles should be executed
           // self.clock_cycle();
@@ -167,11 +169,12 @@ impl Application for RustNESs {
         },
 
         EmulatorMessage::Run50CPUInstructions => {
-          for i in 0..600 {
+          for i in 0..500 {
             self.clock_cycle();
             while (self.cpu.current_instruction_remaining_cycles > 0){
               self.clock_cycle();
             }
+            // println!("0x{:X}", self.cpu.registers.pc);
           }
         },
         EmulatorMessage::NextFrame => {
@@ -208,11 +211,11 @@ impl Application for RustNESs {
         EmulatorMessage::EventOccurred(event) => {
           match event {
             Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Space, modifiers }) => {
-              println!("Spacebar (For run 1 cpu instruction) pressed!");
+              // println!("Spacebar (For run 1 cpu instruction) pressed!");
               self.update(EmulatorMessage::NextCPUInstruction);
             },
             Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Enter, modifiers }) => {
-              println!("Enter(For run 10 cpu instructions) pressed!");
+              // println!("Enter(For run 10 cpu instructions) pressed!");
               self.update(EmulatorMessage::Run50CPUInstructions);
             },
             Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::F, modifiers }) => {
@@ -358,12 +361,12 @@ impl MemoryVisualizer {
   fn view<'a>(&self) -> Element<'a, EmulatorMessage> {
   
     column![
-      text(format!("RAM contents (Addr 0x{:x} - 0x{:x}):", self.ram_start_addr, self.ram_end_addr)),
+      text(format!("RAM contents (Addr 0x{:x} - 0x{:x}):", self.ram_start_addr, self.ram_end_addr-1)),
       text(&self.ram_content_str).size(20),
-      text(format!("RAM contents  at PC (Addr 0x{:x} - 0x{:x}):", self.pc_start_addr, self.pc_end_addr)),
+      text(format!("RAM contents  at PC (Addr 0x{:x} - 0x{:x}):", self.pc_start_addr, self.pc_end_addr-1)),
       text(&self.program_content_str).size(20),
       text(emulation::Ben6502::disassemble(&self.program_content)).size(18).style(Color::from([0.0, 0.0, 1.0])),
-      text(format!("Stack contents (Addr 0x{:x} - 0x{:x}):", self.stack_start_addr, self.stack_end_addr)),
+      text(format!("Stack contents (Addr 0x{:x} - 0x{:x}):", self.stack_start_addr, self.stack_end_addr-1)),
       text(&self.stack_content_str).size(20)
     ]
     .max_width(500)
