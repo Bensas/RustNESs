@@ -500,15 +500,17 @@ pub mod Ben6502 {
   
           let pointer_to_addr = (instruction_addr as u16 + self.registers.x as u16) & 0x00FF;
   
-          self.absolute_mem_address = self.bus.read_word_little_endian(pointer_to_addr, false).unwrap();        
+          self.absolute_mem_address = self.bus.read_word_little_endian(pointer_to_addr, false).unwrap(); // Should we wrap around 0xFFFF here?
         }
         AddressingMode::INY => {
-          let instruction_addr = self.bus.read(self.registers.pc, false).unwrap();
+          let base_pointer_loc = self.bus.read(self.registers.pc, false).unwrap();
           self.registers.pc += 1;
-  
-          let pointer_to_addr = (instruction_addr as u16 + self.registers.y as u16) & 0x00FF;
-  
-          self.absolute_mem_address = self.bus.read_word_little_endian(pointer_to_addr, false).unwrap();        
+
+          let base_pointer_low = self.bus.read(base_pointer_loc as u16, false).unwrap();
+          let base_pointer_high = self.bus.read(base_pointer_loc.wrapping_add(1) as u16 , false).unwrap();
+          let address_at_operand_location = ((base_pointer_high as u16) << 8) + base_pointer_low as u16;
+
+          self.absolute_mem_address = (self.registers.y as u16).wrapping_add(address_at_operand_location as u16);
         },
         AddressingMode::IND => {
           let abs_address_of_low_byte = self.bus.read_word_little_endian(self.registers.pc, false).unwrap();
