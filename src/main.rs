@@ -122,7 +122,7 @@ impl Application for RustNESs {
                 pixel_height: f32::from(PALETTE_VIS_WIDTH) / 32.0
               },
               mem_visualizer: MemoryVisualizer {
-                ram_start_addr: 0xC0,
+                ram_start_addr: 0x00, //0xC0,
                 ram_end_addr: 0x100,
                 pc_start_addr:0x8000,
                 pc_end_addr: 0x8010,
@@ -341,7 +341,7 @@ impl MemoryVisualizer {
     }
 
     self.stack_start_addr = emulation::Ben6502::STACK_START_ADDR + cpu.registers.sp as u16 - 40;
-    self.stack_end_addr = emulation::Ben6502::STACK_START_ADDR + cpu.registers.sp as u16 + 1;
+    self.stack_end_addr = emulation::Ben6502::STACK_START_ADDR + cpu.registers.sp as u16 + 4;
 
 
     if ((self.pc_start_addr >= emulation::Ben2C02::PPU_MEMORY_BOUNDS.0 && self.pc_start_addr <= emulation::Ben2C02::PPU_MEMORY_BOUNDS.1) ||
