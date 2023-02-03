@@ -265,16 +265,11 @@ impl Application for RustNESs {
         column![
           row![
             text("Cpu registers:").size(20),
-            text("A: "),
-            text(self.cpu.registers.a.to_string()),
-            text("X: "),
-            text(self.cpu.registers.x.to_string()),
-            text("Y: "),
-            text(self.cpu.registers.y.to_string()),
-            text("PC(hex): "),
-            text(hex_utils::decimal_word_to_hex_str(self.cpu.registers.pc)),
-            text("SP(hex): "),
-            text(hex_utils::decimal_byte_to_hex_str(self.cpu.registers.sp))
+            text(format!(" A: 0x{:X}", self.cpu.registers.a)),
+            text(format!(" X: 0x{:X}", self.cpu.registers.x)),
+            text(format!(" Y: 0x{:X}", self.cpu.registers.y)),
+            text(format!(" PC: 0x{:X}", self.cpu.registers.pc)),
+            text(format!("SP: 0x{:X}", self.cpu.registers.sp)),
           ],
           row![
             text("Cpu flags:").size(20),
