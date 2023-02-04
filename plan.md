@@ -226,5 +226,52 @@ Once we have this program, we can test using the following:
 
 # Phase 6: PPU Land 2: Name tables
 
-
 - Incrementing the `ppu_address` variable should depend on the value of the control register.
+
+- NES loads two name_tables (2kb) so that we can scroll them across the screen using the scroll register on the PPU
+- SMB uses vertical mirroring (two name_tables are side by side, with other two mirrored below them), while some games use horizontal mirroring, and some mappers llow for switching
+
+- Name table addressing:
+	- Name tables are 32x32 bytes, each byte representing one tile from pattern memory
+	- We have 4 name tables to address.
+	- Our addressing need to specify
+		- Which nametable (4 possible values)
+		- Which tile (X and Y position, each 32 possible values)
+		- Which pixel in the tile (X and Y, each 8 possible values)
+		- We can use a coarse address (12 bits) for nametable+tile, and two variables fineX and fineY for pixel.
+	- Attribute memory
+		- The last 2 rows (64 bytes) of each nametable actually contains the attribute memory, which contains palette info for 8x8=64 "attribute-tiles" on the nametable, each "attribute-tile" containing 16 actual tiles.
+		- Each byte of the attribute memory is divided into 4 2-bit numbers, each defining the paletteID to be used for each 4-tile group in the "attribute-tile. From LSB to MSB: First 2 bits correspond to top-left tiles, then top-right, then bottom-left, then bottom-right.
+		- You could also interpret it as: the 64 attribute bytes are separated into 128 2-bit values, each determining the palette value for a 2x2-tile "attribute-tile"
+
+- Cartridge work:
+	- When loading a ROM file, use the `mapper` header flags to determine the mirroring type (horizontal or vartical), so the PPU then knows which one to use.
+
+- PPU work:
+	- Add two 16-bit loopy registers (`vram` and `tram`) for nametable addressing, each consisting of the flags:
+			- coarse_x: 5-bit
+			- coarse_y: 5-bit
+			- nametable_x: 1 bit
+			- nametable_y: 1 bit
+			- fine_y: 3 bit
+			- unused: 1 bit
+		- Add a `fine_x` variable for nametable addressing to be used alongside the loopy regsiters
+		- Replace the `ppu_address` variable with the loopy `vram` register??
+	- read_from_ppu_memory() and write_to_ppu_memory():
+		- Check mirroring mode on the PPU and read from the name_table array at the appropriate index based on the received address and mirroring mode
+	- read() and write() functions:
+		- When we increase the address, increase it by 32 depending on increment mode (flag in the control register; if set, we increment by 32)
+		- write() function:
+			- when we write to the control register, we update the nametable_x and nametable_y values of the `tram` loopy register
+			- When we write to the address register, we write to the `tram` register, and after we write the low byte (`writing_high_byte_of_addr == false`), we will set `vram = tram`.
+			- When we write to the scroll register, we're gonna check the `writing_high_byte_of_addr` variable and toggle it, just like when writing to the address regiter. We're also gonna do the following:
+				- When `writing_high_byte_of_addr == true`:
+					- set the value of `fine_x` to the first 3 least significant bits from the writen data
+					- set the `coarse_x` bits of the `tram` register to the following 5 bits of the written data
+				- When `writing_high_byte_of_addr == false`:
+					- Do the same, but with `fine_y` and `coarse_y` (note that, unlike `fine_x`, `fine_y` is a part of the `tram` register)
+	- clock_cycle() function:
+		- 
+	
+- GUI:
+	- For testing, we can visualize the pattern table information (palette id for each tile in the nametable)
