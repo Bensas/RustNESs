@@ -271,7 +271,11 @@ Once we have this program, we can test using the following:
 				- When `writing_high_byte_of_addr == false`:
 					- Do the same, but with `fine_y` and `coarse_y` (note that, unlike `fine_x`, `fine_y` is a part of the `tram` register)
 	- clock_cycle() function:
-		- 
+		- Following the diagram https://www.nesdev.org/w/images/default/4/4f/Ppu.svg, we store relevant data in the folloging PPU variables:
+			- `bg_next_tile_id`
+			- `bg_next_tile_attribute`
+			- `bg_next_tile_lsb`
+			- `bg_next_tile_msb`
 	
 - GUI:
 	- For testing, we can visualize the pattern table information (palette id for each tile in the nametable)
