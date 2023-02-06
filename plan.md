@@ -247,7 +247,7 @@ Once we have this program, we can test using the following:
 	- When loading a ROM file, use the `mapper` header flags to determine the mirroring type (horizontal or vartical), so the PPU then knows which one to use.
 
 - [PENDING] PPU work:
-	- [PENDING] Add two 16-bit loopy registers (`vram` and `tram`) for nametable addressing, each consisting of the flags:
+	- Add two 16-bit loopy registers (`vram` and `tram`) for nametable addressing, each consisting of the flags:
 			- coarse_x: 5-bit
 			- coarse_y: 5-bit
 			- nametable_x: 1 bit
@@ -255,7 +255,7 @@ Once we have this program, we can test using the following:
 			- fine_y: 3 bit
 			- unused: 1 bit
 		- Add a `fine_x` variable for nametable addressing to be used alongside the loopy regsiters
-		- Replace the `ppu_address` variable with the loopy `vram` register??
+		- Replace the `ppu_address` variable with the loopy `vram` register
 	- [PENDING] read_from_ppu_memory() and write_to_ppu_memory():
 		- Check mirroring mode on the PPU and read from the name_table array at the appropriate index based on the received address and mirroring mode
 	- [PENDING] read() and write() functions:

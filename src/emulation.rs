@@ -84,11 +84,37 @@ pub mod bitwise_utils {
     return (source & (1 << bit_pos) != 0) as u8;
   }
 
+  pub fn get_bit_16(source: u16, bit_pos: u8) -> u8{
+    return (source & (1 << bit_pos) != 0) as u8;
+  }
+
   pub fn set_bit(target: &mut u8, bit_pos: u8, new_value: u8) {
     match new_value {
       0 => *target &= !(1 << bit_pos),
       1 => *target |= (1 << bit_pos),
       _ => panic!("Tried to set_bit with a value other than 0 or 1")
+    }
+  }
+
+  pub fn set_bit_16(target: &mut u16, bit_pos: u8, new_value: u8) {
+    match new_value {
+      0 => *target &= !(1 << bit_pos),
+      1 => *target |= (1 << bit_pos),
+      _ => panic!("Tried to set_bit_16 with a value other than 0 or 1")
+    }
+  }
+
+  pub fn get_bits_16(source: u16, start_bit_pos: u8, end_bit_pos: u8) -> u16 { // start and end are inclusive
+    let mut mask: u16 = 0b00000000;
+    for i in start_bit_pos..end_bit_pos+1 {
+      mask |= 1 << i;
+    }
+    return (source & mask) >> start_bit_pos;
+  }
+
+  pub fn set_bits_16(target: &mut u16, start_bit_pos: u8, end_bit_pos: u8, new_value: u16) {
+    for i in start_bit_pos..end_bit_pos+1 {
+      set_bit_16(target, i, get_bit_16(new_value, i - start_bit_pos));
     }
   }
 }
@@ -1467,6 +1493,68 @@ pub mod Ben2C02 {
     }
   }
 
+  pub struct VramRegister {
+    flags: u16
+  }
+  
+  impl VramRegister {
+  
+    fn new() -> VramRegister {
+      return VramRegister {
+        flags: 0b00000000 
+      }
+    }
+
+    pub fn get_coarse_x(&self) -> u8 {
+      return (bitwise_utils::get_bits_16(self.flags, 0, 4) & 0xFF) as u8;
+    }
+  
+    fn set_coarse_x(&mut self, value: u8) {
+      if (value > 0b11111) {
+        panic!("VramRegister::set_coarse_x() was given a value larger than 5 bits!");
+      };
+      bitwise_utils::set_bits_16(&mut self.flags, 0, 4, value as u16);
+    }
+  
+    pub fn get_coarse_y(&self) -> u8 {
+      return (bitwise_utils::get_bits_16(self.flags, 5, 9) & 0xFF) as u8;
+    }
+  
+    fn set_coarse_y(&mut self, value: u8) {
+      if (value > 0b11111) {
+        panic!("VramRegister::set_coarse_y() was given a value larger than 5 bits!");
+      };
+      bitwise_utils::set_bits_16(&mut self.flags, 5, 9, value as u16);
+    }
+
+    pub fn get_nametable_x(&self) -> u8 {
+      return bitwise_utils::get_bit_16(self.flags, 10);
+    }
+  
+    fn set_nametable_x(&mut self, value: u8) {
+      bitwise_utils::set_bit_16(&mut self.flags, 10, value);
+    }
+  
+    pub fn get_nametable_y(&self) -> u8 {
+      return bitwise_utils::get_bit_16(self.flags, 11);
+    }
+  
+    fn set_nametable_y(&mut self, value: u8) {
+      bitwise_utils::set_bit_16(&mut self.flags, 11, value);
+    }
+
+    pub fn get_fine_y(&self) -> u8 {
+      return (bitwise_utils::get_bits_16(self.flags, 12, 14) & 0xFF) as u8;
+    }
+  
+    fn set_fine_y(&mut self, value: u8) {
+      if (value > 0b111) {
+        panic!("VramRegister::set_fine_y() was given a value larger than 3 bits!");
+      };
+      bitwise_utils::set_bits_16(&mut self.flags, 12, 14, value as u16);
+    }
+  }
+
   pub struct Ben2C02 {
     memory_bounds: (u16, u16),
 
@@ -1481,8 +1569,10 @@ pub mod Ben2C02 {
     mask_reg: MaskRegister,
     pub status_reg: StatusRegister,
     writing_high_byte_of_addr: bool,
-    ppu_addr: u16,
     ppu_data_read_buffer: u8,
+    vram_reg: VramRegister,
+    temp_vram_reg: VramRegister,
+    fine_x: u8,
 
     pattern_tables: [[u8; 4096]; 2],
     pattern_tables_mem_bounds: (u16, u16),
@@ -1514,8 +1604,10 @@ pub mod Ben2C02 {
         mask_reg: MaskRegister::new(),
         status_reg: StatusRegister::new(),
         writing_high_byte_of_addr: true,
-        ppu_addr: 0,
         ppu_data_read_buffer: 0,
+        vram_reg: VramRegister::new(),
+        temp_vram_reg: VramRegister::new(),
+        fine_x: 0,
 
         pattern_tables: [[0; 4096]; 2],
         pattern_tables_mem_bounds: (0x0000, 0x1FFF),
@@ -1738,7 +1830,7 @@ pub mod Ben2C02 {
         },
         Err(message) => {
           println!("Tried to read from cartridge, but failed with error: {}. Reading from PPU internal memory instead :)" , message);
-          return Ok(self.read_from_ppu_memory(self.ppu_addr).unwrap());
+          return Ok(self.read_from_ppu_memory(self.vram_reg.flags).unwrap());
         }
       }
     }
@@ -1788,17 +1880,17 @@ pub mod Ben2C02 {
           },
           0x6 => { // PPU Address
             if self.writing_high_byte_of_addr {
-              self.ppu_addr &= 0xFF;
-              self.ppu_addr += (data as u16) << 8; 
+              self.vram_reg.flags &= 0xFF;
+              self.vram_reg.flags += (data as u16) << 8; 
             } else {
-              self.ppu_addr &= 0xFF00;
-              self.ppu_addr += (data as u16); 
+              self.vram_reg.flags &= 0xFF00;
+              self.vram_reg.flags += (data as u16); 
             }
             self.writing_high_byte_of_addr = !self.writing_high_byte_of_addr;
           },
           0x7 => { // PPU data
-            self.write_to_ppu_bus(self.ppu_addr, data).unwrap();
-            self.ppu_addr += 1; // TODO: depending on increment mode, we might want to add 32 bytes instead of 1
+            self.write_to_ppu_bus(self.vram_reg.flags, data).unwrap();
+            self.vram_reg.flags += 1; // TODO: depending on increment mode, we might want to add 32 bytes instead of 1
             return Ok(());
           },
           _ => return Err(String::from("Error while mirroring address in PPU write() function!"))
@@ -1841,21 +1933,21 @@ pub mod Ben2C02 {
             return Ok(0);
           },
           0x7 => { // PPU data
-            let read_result = self.read_from_ppu_bus(self.ppu_addr).unwrap();
+            let read_result = self.read_from_ppu_bus(self.vram_reg.flags).unwrap();
 
             let return_value : u8;
             // Unless reading from palette memory, we return the value that is currently 
             // stored on the read buffer, and then update the buffer with the 
             // data located at self.ppu_addr
             // Essentially, most read() operations are delayed one cycle.
-            if self.in_palette_memory_bounds(self.ppu_addr) {
+            if self.in_palette_memory_bounds(self.vram_reg.flags) {
               self.ppu_data_read_buffer = read_result;
               return_value = read_result;
             } else {
               return_value = self.ppu_data_read_buffer;
               self.ppu_data_read_buffer = read_result;
             }
-            self.ppu_addr += 1; // TODO: depending on increment mode, we might want to add 32 bytes instead of 1
+            self.vram_reg.flags += 1; // TODO: depending on increment mode, we might want to add 32 bytes instead of 1
             return Ok(return_value);
 
           },
