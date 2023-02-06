@@ -258,7 +258,7 @@ Once we have this program, we can test using the following:
 		- Replace the `ppu_address` variable with the loopy `vram` register
 	- read_from_ppu_memory() and write_to_ppu_memory():
 		- Check mirroring mode on the PPU and read from the name_table array at the appropriate index based on the received address and mirroring mode
-	- [PENDING] read() and write() functions:
+	- read() and write() functions:
 		- When we increase the address, increase it by 32 depending on increment mode (flag in the control register; if set, we increment by 32)
 		- write() function:
 			- when we write to the control register, we update the nametable_x and nametable_y values of the `tram` loopy register

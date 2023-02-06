@@ -1907,6 +1907,8 @@ pub mod Ben2C02 {
         match mirrored_addr {
           0x0 => { // Control
             self.controller_reg.flags = data;
+            self.temp_vram_reg.set_nametable_x(self.controller_reg.get_nametable_x());
+            self.temp_vram_reg.set_nametable_y(self.controller_reg.get_nametable_y());
           },
           0x1 => { // Mask
             self.mask_reg.flags = data;
@@ -1921,21 +1923,30 @@ pub mod Ben2C02 {
 
           },
           0x5 => { // Scroll
+            if self.writing_high_byte_of_addr {
+              self.fine_x = bitwise_utils::get_bits_16(data as u16, 0, 2) as u8;
+              self.temp_vram_reg.set_coarse_x(bitwise_utils::get_bits_16(data as u16, 3, 7) as u8);
+            } else {
+              self.temp_vram_reg.set_fine_y(bitwise_utils::get_bits_16(data as u16, 0, 2) as u8);
+              self.temp_vram_reg.set_coarse_y(bitwise_utils::get_bits_16(data as u16, 3, 7) as u8);
+            }
+            self.writing_high_byte_of_addr = !self.writing_high_byte_of_addr;
 
           },
           0x6 => { // PPU Address
             if self.writing_high_byte_of_addr {
-              self.vram_reg.flags &= 0xFF;
-              self.vram_reg.flags += (data as u16) << 8; 
+              self.temp_vram_reg.flags &= 0xFF;
+              self.temp_vram_reg.flags += (data as u16) << 8; 
             } else {
-              self.vram_reg.flags &= 0xFF00;
-              self.vram_reg.flags += (data as u16); 
+              self.temp_vram_reg.flags &= 0xFF00;
+              self.temp_vram_reg.flags += (data as u16);
+              self.vram_reg = self.temp_vram_reg; 
             }
             self.writing_high_byte_of_addr = !self.writing_high_byte_of_addr;
           },
           0x7 => { // PPU data
             self.write_to_ppu_bus(self.vram_reg.flags, data).unwrap();
-            self.vram_reg.flags += 1; // TODO: depending on increment mode, we might want to add 32 bytes instead of 1
+            self.vram_reg.flags += if (self.controller_reg.get_increment_mode() != 0) { 32 } else { 1 };
             return Ok(());
           },
           _ => return Err(String::from("Error while mirroring address in PPU write() function!"))
@@ -1992,7 +2003,7 @@ pub mod Ben2C02 {
               return_value = self.ppu_data_read_buffer;
               self.ppu_data_read_buffer = read_result;
             }
-            self.vram_reg.flags += 1; // TODO: depending on increment mode, we might want to add 32 bytes instead of 1
+            self.vram_reg.flags += if (self.controller_reg.get_increment_mode() != 0) { 32 } else { 1 };
             return Ok(return_value);
 
           },
