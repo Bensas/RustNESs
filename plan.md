@@ -271,10 +271,10 @@ Once we have this program, we can test using the following:
 					- Do the same, but with `fine_y` and `coarse_y` (note that, unlike `fine_x`, `fine_y` is a part of the `tram` register)
 	- clock_cycle() function:
 		- Following the diagram https://www.nesdev.org/w/images/default/4/4f/Ppu.svg, we store relevant data in the folloging PPU variables:
-			- `bg_next_tile_id`
-			- `bg_next_tile_attribute`
-			- `bg_next_tile_lsb`
-			- `bg_next_tile_msb` 
+			- `bg_next_tile_id: u8`
+			- `bg_next_tile_attribute: u8`
+			- `bg_next_tile_lsb: u8`
+			- `bg_next_tile_msb: u8` 
 		- We include functions for scrolling:
 			- They all check `if (mask.render_background || mask.render_sprites)` in order to do what they need to do.
 			- IncrementX will:
@@ -292,6 +292,24 @@ Once we have this program, we can test using the following:
 				- `vram.nametable_y = tram.nametable_y`
 				- `vram.coarse_y = tram.coarse_y`
 				- `vram.fine_y = tram.fine_y`
+	- u16 Shift registers:
+		- `bg_shifter_pattern_lo: u16`
+		- `bg_shifter_pattern_hi: u16`
+		- `bg_shifter_attrib_lo: u16`
+		- `bg_shifter_attrib_hi: u16`
+	- Functions for shift register handling:
+		- LoadBackgroundShifters:
+			- `bg_shifter_pattern_lo = (bg_shifter_pattern_lo & 0xFF00) | bg_next_tile_lsb;`
+			- `bg_shifter_pattern_hi = (bg_shifter_pattern_hi & 0xFF00) | bg_next_tile_msb;`
+			- `bg_shifter_attrib_lo = (bg_shifter_attrib_lo & 0xFF00) | ((bg_next_tile_attrib & 0b01)? 0xFF : 0x00);`
+			- `bg_shifter_attrib_hi = (bg_shifter_attrib_hi & 0xFF00) | ((bg_next_tile_attrib & 0b10)? 0xFF : 0x00);`
+		- UpdateShifters:
+			- Check `if mask.render_background` in order to do what it needs to do
+			- `bg_shifter_pattern_lo << 1`
+			- `bg_shifter_pattern_hi << 1`
+			- `bg_shifter_attrib_lo << 1`
+			- `bg_shifter_attrib_hi << 1`
+
 	
 - Rename `controller_reg` variable to `control_reg`
 - GUI:

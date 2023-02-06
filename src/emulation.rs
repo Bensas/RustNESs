@@ -1547,9 +1547,6 @@ pub mod Ben2C02 {
     pub fn clock_cycle(&mut self) {
 
       let mut rng = rand::thread_rng();
-      if (self.cycle < 256 && self.scan_line < 240 && self.scan_line != -1) {
-        self.screen_vis_buffer[self.scan_line as usize][self.cycle as usize] = self.palette_vis_bufer[rng.gen_range(0..(self.palette_vis_bufer.len()-1))]; // Temporary
-      }
         
       self.cycle += 1;
       if self.cycle > 340 {
@@ -1569,8 +1566,10 @@ pub mod Ben2C02 {
         }
 
         if ((self.cycle >= 2 && self.cycle < 258) || (self.cycle >= 321 && self.cycle < 338)) {
+          // self.update_shif_registers();
           match ((self.cycle - 1) % 8) {
             0 => {
+              // self.load_background_shift_registers_with_next_tile();
               // self.bg_next_tile_id = self.read_from_ppu_bus(0x2000 | (self.vram_addr & 0xFFF));
             },
             1 => {
@@ -1639,6 +1638,26 @@ pub mod Ben2C02 {
           self.trigger_cpu_nmi = true;
         }
       }
+
+      let bg_pixel_value: u8 = 0;
+      let bg_palette_id: u8 = 0;
+
+      if (self.mask_reg.get_render_background() != 0) {
+        // let bit_mux: u16 = 0x8000 >> self.fine_x;
+        
+        // let bg_pixel0 = ((self.bg_shifter_pattern_lo & bit_mux) > 0) as u8;
+        // let bg_pixel1 = ((self.bg_shifter_pattern_hi & bit_mux) > 0) as u8;
+        // bg_pixel_value = bg_pixel1 << 1 | bg_pixel0;
+
+        // let bg_palette0 = ((self.bg_shifter_attr_lo & bit_mux) > 0) as u8;
+        // let bg_palette1 = ((self.bg_shifter_attr_hi & bit_mux) > 0) as u8;
+        // bg_palette_id = bg_palette1 << 1 | bg_palette0;
+      }
+
+      if (self.cycle < 256 && self.scan_line < 240 && self.scan_line != -1) {
+        // self.screen_vis_buffer[self.scan_line as usize][self.cycle as usize] = self.get_color_from_palette(bg_pixel_value, bg_palette_id);
+      }
+
     }
 
 
