@@ -246,8 +246,8 @@ Once we have this program, we can test using the following:
 - Cartridge work:
 	- When loading a ROM file, use the `mapper` header flags to determine the mirroring type (horizontal or vartical), so the PPU then knows which one to use.
 
-- PPU work:
-	- Add two 16-bit loopy registers (`vram` and `tram`) for nametable addressing, each consisting of the flags:
+- [PENDING] PPU work:
+	- [PENDING] Add two 16-bit loopy registers (`vram` and `tram`) for nametable addressing, each consisting of the flags:
 			- coarse_x: 5-bit
 			- coarse_y: 5-bit
 			- nametable_x: 1 bit
@@ -256,9 +256,9 @@ Once we have this program, we can test using the following:
 			- unused: 1 bit
 		- Add a `fine_x` variable for nametable addressing to be used alongside the loopy regsiters
 		- Replace the `ppu_address` variable with the loopy `vram` register??
-	- read_from_ppu_memory() and write_to_ppu_memory():
+	- [PENDING] read_from_ppu_memory() and write_to_ppu_memory():
 		- Check mirroring mode on the PPU and read from the name_table array at the appropriate index based on the received address and mirroring mode
-	- read() and write() functions:
+	- [PENDING] read() and write() functions:
 		- When we increase the address, increase it by 32 depending on increment mode (flag in the control register; if set, we increment by 32)
 		- write() function:
 			- when we write to the control register, we update the nametable_x and nametable_y values of the `tram` loopy register
@@ -269,13 +269,13 @@ Once we have this program, we can test using the following:
 					- set the `coarse_x` bits of the `tram` register to the following 5 bits of the written data
 				- When `writing_high_byte_of_addr == false`:
 					- Do the same, but with `fine_y` and `coarse_y` (note that, unlike `fine_x`, `fine_y` is a part of the `tram` register)
-	- clock_cycle() function:
+	- [PENDING] clock_cycle() function:
 		- Following the diagram https://www.nesdev.org/w/images/default/4/4f/Ppu.svg, we store relevant data in the folloging PPU variables:
 			- `bg_next_tile_id: u8`
 			- `bg_next_tile_attribute: u8`
 			- `bg_next_tile_lsb: u8`
 			- `bg_next_tile_msb: u8` 
-		- We include functions for scrolling:
+		- [PENDING] We include functions for scrolling:
 			- They all check `if (mask.render_background || mask.render_sprites)` in order to do what they need to do.
 			- IncrementX will:
 				- Increment the `coarse_x` value of the `vram` register
@@ -297,7 +297,7 @@ Once we have this program, we can test using the following:
 		- `bg_shifter_pattern_hi: u16`
 		- `bg_shifter_attrib_lo: u16`
 		- `bg_shifter_attrib_hi: u16`
-	- Functions for shift register handling:
+	- [PENDING] Functions for shift register handling:
 		- LoadBackgroundShifters:
 			- `bg_shifter_pattern_lo = (bg_shifter_pattern_lo & 0xFF00) | bg_next_tile_lsb;`
 			- `bg_shifter_pattern_hi = (bg_shifter_pattern_hi & 0xFF00) | bg_next_tile_msb;`

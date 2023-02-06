@@ -1975,6 +1975,13 @@ pub mod Cartridge {
 
   use super::{Mapper::{Mapper, Mapper000}, Device::Device};
 
+  pub enum MirroringMode {
+    Vertical,
+    Horizontal,
+    OnscreenLo,
+    OnscreenHi
+  }
+
   fn verify_nes_header (file_contents: &Vec<u8>) -> bool{
     return file_contents[0] == ('N' as u8) &&
           file_contents[1] == ('E' as u8) &&
@@ -2033,9 +2040,11 @@ pub mod Cartridge {
       tv_system_2: get_tv_system_2_from_flags10(flags10),
     };
 
+    let mirroring_mode = if (header.mapper1 & 0x01) != 0 { MirroringMode::Vertical } else { MirroringMode::Horizontal };
+
     let mapper = create_mapper_from_number((header.mapper2 << 4) & header.mapper1, prg_chunks, chr_chunks).unwrap();
 
-    let mut cartridge = Cartridge::new(header, mapper);
+    let mut cartridge = Cartridge::new(header, mapper, mirroring_mode);
 
     let prg_data_start_index: usize= if ((flags6 & 0x04 != 0) as bool) { 16 + 512 } else { 16 }; 
     
@@ -2092,18 +2101,20 @@ pub mod Cartridge {
     rom_header: RomHeader,
     PRG_data: Vec<u8>,
     CHR_data: Vec<u8>,
-    mapper: Box<dyn Mapper>
+    mapper: Box<dyn Mapper>,
+    mirroring_mode: MirroringMode
   }
 
   impl Cartridge {
-    fn new(rom_header: RomHeader, mapper: Box<dyn Mapper>) -> Cartridge {
+    fn new(rom_header: RomHeader, mapper: Box<dyn Mapper>, mirroring_mode: MirroringMode) -> Cartridge {
       return Cartridge {
         cpu_memory_bounds: (0x8000, 0xFFFF),
         ppu_memory_bounds: (0x0000, 0x1FFF),
         rom_header,
         PRG_data: vec![],
         CHR_data: vec![],
-        mapper
+        mapper,
+        mirroring_mode
       };
     }
 
