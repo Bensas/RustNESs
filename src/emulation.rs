@@ -1561,15 +1561,83 @@ pub mod Ben2C02 {
         }
       }
 
+      // This cycle stravaganza is very concisely explained here: https://www.nesdev.org/w/images/default/4/4f/Ppu.svg
+
+      if (self.scan_line >= -1 && self.scan_line < 240) {
+        if (self.scan_line == -1 && self.cycle == 1) {
+          self.status_reg.set_vertical_blank(0);
+        }
+
+        if ((self.cycle >= 2 && self.cycle < 258) || (self.cycle >= 321 && self.cycle < 338)) {
+          match ((self.cycle - 1) % 8) {
+            0 => {
+              // self.bg_next_tile_id = self.read_from_ppu_bus(0x2000 | (self.vram_addr & 0xFFF));
+            },
+            1 => {
+
+            },
+            2 => {
+              // self.bg_next_tile_attribute = self.read_from_ppu_bus(
+              //                                     0x23C0 |
+              //                                     (self.vram.nametable_y << 11) |
+              //                                     (self.vram.nametable_x << 10) |
+              //                                     ((self.vram.coarse_y >> 2) << 3) |
+              //                                     (self.vram.coarse_x >> 2));
+              // if ((self.vram.coarse_y & 0x02) != 0) {
+              //   self.bg_tile_next_attribute >>= 4;
+              // }
+              // if ((self.vram.coarse_x & 0x02) != 0) {
+              //   self.bg_tile_next_attribute >>= 2;
+              // }
+              // self.bg_tile_next_attribute &= 0x03;
+            },
+            3 => {
+
+            },
+            4 => {
+              // self.bg_next_tile_lsb = self.read_from_ppu_bus(
+              //   (self.controller_reg.get_pattern_background() << 12) +
+              //         ((self.bg_next_tile_id as u16) << 4) +
+              //         (self.vram.fine_y));
+            },
+            5 => {
+
+            },
+            6 => {
+              // self.bg_next_tile_msb = self.read_from_ppu_bus(
+              //   (self.controller_reg.get_pattern_background() << 12) +
+              //         ((self.bg_next_tile_id as u16) << 4) +
+              //         (self.vram.fine_y) + 8);
+            },
+            7 => {
+              // IncrementScrollX()
+            },
+            _ => {}
+          }
+        }
+
+        if (self.cycle == 256) {
+          // IncrementScrollY()
+        }
+
+        if (self.cycle == 257) {
+          // TransferAddressX()
+        }
+
+        if (self.scan_line == -1 && self.cycle >= 280 && self.cycle < 305) {
+          // TransferAddressY()
+        }
+      }
+
+      if (self.scan_line == 240) {
+        
+      }
+
       if (self.scan_line == 241 && self.cycle == 1) {
         self.status_reg.set_vertical_blank(1);
         if (self.controller_reg.get_enable_nmi() ==  1) {
           self.trigger_cpu_nmi = true;
         }
-      }
-
-      if (self.scan_line == -1 && self.cycle == 1) {
-        self.status_reg.set_vertical_blank(0);
       }
     }
 

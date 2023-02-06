@@ -226,11 +226,9 @@ Once we have this program, we can test using the following:
 
 # Phase 6: PPU Land 2: Name tables
 
-- Incrementing the `ppu_address` variable should depend on the value of the control register.
-
+## Some notes
 - NES loads two name_tables (2kb) so that we can scroll them across the screen using the scroll register on the PPU
 - SMB uses vertical mirroring (two name_tables are side by side, with other two mirrored below them), while some games use horizontal mirroring, and some mappers llow for switching
-
 - Name table addressing:
 	- Name tables are 32x32 bytes, each byte representing one tile from pattern memory
 	- We have 4 name tables to address.
@@ -244,6 +242,7 @@ Once we have this program, we can test using the following:
 		- Each byte of the attribute memory is divided into 4 2-bit numbers, each defining the paletteID to be used for each 4-tile group in the "attribute-tile. From LSB to MSB: First 2 bits correspond to top-left tiles, then top-right, then bottom-left, then bottom-right.
 		- You could also interpret it as: the 64 attribute bytes are separated into 128 2-bit values, each determining the palette value for a 2x2-tile "attribute-tile"
 
+## Work
 - Cartridge work:
 	- When loading a ROM file, use the `mapper` header flags to determine the mirroring type (horizontal or vartical), so the PPU then knows which one to use.
 
@@ -275,7 +274,25 @@ Once we have this program, we can test using the following:
 			- `bg_next_tile_id`
 			- `bg_next_tile_attribute`
 			- `bg_next_tile_lsb`
-			- `bg_next_tile_msb`
+			- `bg_next_tile_msb` 
+		- We include functions for scrolling:
+			- They all check `if (mask.render_background || mask.render_sprites)` in order to do what they need to do.
+			- IncrementX will:
+				- Increment the `coarse_x` value of the `vram` register
+				- If `coarse_x` goes above 31, we switch the value of `nametable_x` (Does this assume that we use vertical mirroring?) and reset `coarse_x` to 0
+			- IncrementY will
+				- Increment the `fine_x` value of the `vram` register
+				- If `fine_y` goes above 7, we increase the value of `coarse_y` and reset `fine_y` to 0.
+				- If `coarse_y` goes above 29, we switch the value of `nametable_y` and reset `coarse_y` to 0
+				- If `coarse_y` goes above 31 (we're in attribute memory), we only reset `coarse_y`.
+			- TransferAddresssX will
+				- `vram.nametable_x = tram.nametable_x`
+				- `vram.coarse_x = tram.coarse_x`
+			- TransferAddresssY will
+				- `vram.nametable_y = tram.nametable_y`
+				- `vram.coarse_y = tram.coarse_y`
+				- `vram.fine_y = tram.fine_y`
 	
+- Rename `controller_reg` variable to `control_reg`
 - GUI:
 	- For testing, we can visualize the pattern table information (palette id for each tile in the nametable)
