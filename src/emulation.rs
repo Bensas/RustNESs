@@ -1221,7 +1221,7 @@ File: Ben2C02.rs
 pub mod Ben2C02 {
   use std::sync::{Arc, Mutex};
 
-  use super::{graphics::Color, Device::Device, bitwise_utils};
+  use super::{graphics::Color, Device::Device, bitwise_utils, Cartridge::{Cartridge, MirroringMode}};
   use rand::Rng;
 
   pub const PPU_MEMORY_BOUNDS: (u16, u16) = (0x2000, 0x3FFF);
@@ -1558,7 +1558,7 @@ pub mod Ben2C02 {
   pub struct Ben2C02 {
     memory_bounds: (u16, u16),
 
-    cartridge: Arc<Mutex<dyn Device>>,
+    cartridge: Arc<Mutex<Cartridge>>,
 
     scan_line: i16,
     cycle: i16,
@@ -1783,13 +1783,36 @@ pub mod Ben2C02 {
       return self.palette_vis_bufer[pixel_color_code as usize];
     }
 
+    // Useful: https://www.nesdev.org/wiki/PPU_memory_map
     fn write_to_ppu_memory(&mut self, addr: u16, data: u8) -> Result<(), String>{
       if self.in_pattern_table_memory_bounds(addr) {
 		    self.pattern_tables[((addr & 0x1000) > 0) as usize][(addr & 0x0FFF) as usize] = data;
         return Ok(());
       }
       else if self.in_name_table_memory_bounds(addr) {
-        // TODO: implement
+        let mirroring_mode = self.cartridge.lock().unwrap().mirroring_mode;
+
+        if addr <= 0x23FF {
+          self.name_tables[0][(addr & 0x3FF) as usize] = data;
+        } else if addr <= 0x27FF {
+          if (matches!(mirroring_mode, MirroringMode::Horizontal)) {
+            self.name_tables[0][(addr & 0x3FF) as usize] = data;
+          } else if (matches!(mirroring_mode, MirroringMode::Vertical)) {
+            self.name_tables[1][(addr & 0x3FF) as usize] = data;
+          } else {
+            todo!("Mirroring mode {:?} not implemented!", mirroring_mode);
+          }
+        } else if addr <= 0x2BFF {
+          if (matches!(mirroring_mode, MirroringMode::Horizontal)) {
+            self.name_tables[1][(addr & 0x3FF) as usize] = data;
+          } else if (matches!(mirroring_mode, MirroringMode::Vertical)) {
+            self.name_tables[0][(addr & 0x3FF) as usize] = data;
+          } else {
+            todo!("Mirroring mode {:?} not implemented!", mirroring_mode);
+          }
+        } else if addr <= 0x2FFF {
+          self.name_tables[1][(addr & 0x3FF) as usize] = data;
+        }
         return Ok(());
       }
       else if self.in_palette_memory_bounds(addr) {
@@ -1809,8 +1832,30 @@ pub mod Ben2C02 {
         return Ok(data);
       }
       else if self.in_name_table_memory_bounds(addr) {
-        // TODO: implement
-        return Ok(0);
+        let mirroring_mode = self.cartridge.lock().unwrap().mirroring_mode;
+        if addr <= 0x23FF {
+          return Ok(self.name_tables[0][(addr & 0x3FF) as usize]);
+        } else if addr <= 0x27FF {
+          if (matches!(mirroring_mode, MirroringMode::Horizontal)) {
+            return Ok(self.name_tables[0][(addr & 0x3FF) as usize]);
+          } else if (matches!(mirroring_mode, MirroringMode::Vertical)) {
+            return Ok(self.name_tables[1][(addr & 0x3FF) as usize]);
+          } else {
+            todo!("Mirroring mode {:?} not implemented!", mirroring_mode);
+          }
+        } else if addr <= 0x2BFF {
+          if (matches!(mirroring_mode, MirroringMode::Horizontal)) {
+            return Ok(self.name_tables[1][(addr & 0x3FF) as usize]);
+          } else if (matches!(mirroring_mode, MirroringMode::Vertical)) {
+            return Ok(self.name_tables[0][(addr & 0x3FF) as usize]);
+          } else {
+            todo!("Mirroring mode {:?} not implemented!", mirroring_mode);
+          }
+        } else if addr <= 0x2FFF {
+          return Ok(self.name_tables[1][(addr & 0x3FF) as usize]);
+        } else {
+          panic!("Tried to access name_table memory in PPU bus but address was invalid! (Address: 0x{:X})", addr);
+        }
       }
       else if self.in_palette_memory_bounds(addr) {
         let data = self.palette[((addr & 0x0FF) % 32) as usize];
@@ -2067,6 +2112,7 @@ pub mod Cartridge {
 
   use super::{Mapper::{Mapper, Mapper000}, Device::Device};
 
+  #[derive(Debug)]
   pub enum MirroringMode {
     Vertical,
     Horizontal,
@@ -2194,7 +2240,7 @@ pub mod Cartridge {
     PRG_data: Vec<u8>,
     CHR_data: Vec<u8>,
     mapper: Box<dyn Mapper>,
-    mirroring_mode: MirroringMode
+    pub mirroring_mode: MirroringMode
   }
 
   impl Cartridge {
