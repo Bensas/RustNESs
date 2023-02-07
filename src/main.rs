@@ -9,7 +9,7 @@ use emulation::{ Bus16Bit::Bus16Bit, Ben6502::Ben6502, hex_utils, Ben2C02::Ben2C
 
 
 use iced::widget::{button, column, row, text};
-use iced::{Alignment, Element, Sandbox, Settings, Renderer, event, Application, Subscription, executor, Theme, Command, Rectangle, time, Point, Size};
+use iced::{Alignment, Element, Sandbox, Settings, Renderer, event, Application, Subscription, executor, Theme, Command, Rectangle, time, Point, Size, window};
 
 use iced::keyboard::{self, KeyCode, Modifiers};
 
@@ -30,7 +30,7 @@ fn main() {
   RustNESs::run(Settings::default());
 }
 
-const EMULATOR_CYCLES_PER_SECOND: u64 = 10;
+const EMULATOR_CYCLES_PER_SECOND: f32 = 2000.0;
 const SCREEN_HEIGHT: u16 = 500;
 const PATTERN_TABLE_VIS_HEIGHT: u16 = 300;
 const PALETTE_VIS_HEIGHT: u16 = 30;
@@ -41,7 +41,8 @@ struct RustNESs {
   current_cycle: u64,
 
   paused: bool,
-  cycles_per_second: u64,
+  cycles_per_second: f32,
+  cycle_start_time: Instant,
 
   ppu_screen_buffer_visualizer: PPUScreenBufferVisualizer,
   ppu_pattern_tables_buffer_visualizer: PPUPatternTableBufferVisualizer,
@@ -74,12 +75,11 @@ impl RustNESs {
 
 #[derive(Debug, Clone)]
 enum EmulatorMessage {
-  ResumeEmulation,
-  PauseEmulation,
+  Tick,
+  TogglePauseEmulation,
   NextCPUInstruction,
   NextFrame,
   Run50CPUInstructions,
-
   PatternTablePaletteCycle,
   EventOccurred(iced_native::Event),
 }
@@ -105,8 +105,9 @@ impl Application for RustNESs {
     return (Self { 
               cpu,
               current_cycle: 0,
-              paused: true,
+              paused: false,
               cycles_per_second: EMULATOR_CYCLES_PER_SECOND,
+              cycle_start_time: Instant::now(),
               ppu_screen_buffer_visualizer: PPUScreenBufferVisualizer {
                 screen_vis_buffer: [[emulation::graphics::Color::new(0, 0, 0); 256]; 240],
                 canvas_cache: Cache::default(),
@@ -147,104 +148,123 @@ impl Application for RustNESs {
 
   fn update(&mut self, message: Self::Message) -> iced::Command<EmulatorMessage> {
 
+  
     match message {
-        EmulatorMessage::ResumeEmulation => {
-          self.paused = false;
-        },
-        EmulatorMessage::PauseEmulation => {
-          self.paused = true;
-        },
-        EmulatorMessage::NextCPUInstruction => {
+      EmulatorMessage::Tick => {
+        self.clock_cycle();
+        // println!("Hey");
+        // if !self.paused {
+        //   let elapsed_time = self.cycle_start_time.elapsed();
+        //   if (elapsed_time.as_secs_f32() > (1.0 / self.cycles_per_second)){
+            
+        //     self.cycle_start_time = Instant::now();
+        //   }
+        // }
+      },
+      EmulatorMessage::TogglePauseEmulation => {
+        self.paused = !self.paused;
+      },
+      EmulatorMessage::NextCPUInstruction => {
+        self.clock_cycle();
+        while (self.cpu.current_instruction_remaining_cycles > 0){
+          self.clock_cycle();
+        }
+
+        // println!("0x{:X}", self.cpu.registers.pc);
+        
+        // // TODO: verify that this is how the cycles should be executed
+        // self.clock_cycle();
+        // while (self.cpu.current_instruction_remaining_cycles == 0) {
+        //   self.clock_cycle();
+        // }
+        
+      },
+
+      EmulatorMessage::Run50CPUInstructions => {
+        for i in 0..50 {
           self.clock_cycle();
           while (self.cpu.current_instruction_remaining_cycles > 0){
             self.clock_cycle();
           }
-
           // println!("0x{:X}", self.cpu.registers.pc);
-          
-          // // TODO: verify that this is how the cycles should be executed
-          // self.clock_cycle();
-          // while (self.cpu.current_instruction_remaining_cycles == 0) {
-          //   self.clock_cycle();
-          // }
-          
-        },
-
-        EmulatorMessage::Run50CPUInstructions => {
-          for i in 0..500 {
-            self.clock_cycle();
-            while (self.cpu.current_instruction_remaining_cycles > 0){
-              self.clock_cycle();
-            }
-            // println!("0x{:X}", self.cpu.registers.pc);
-          }
-        },
-        EmulatorMessage::NextFrame => {
+        }
+      },
+      EmulatorMessage::NextFrame => {
+        self.clock_cycle();
+        let ppu_mutex = self.cpu.bus.get_PPU();
+        let ppu_mutex_guard = ppu_mutex.lock().unwrap();
+        let mut frame_render_complete = ppu_mutex_guard.frame_render_complete;
+        drop(ppu_mutex_guard);
+        drop(ppu_mutex);
+        while (!frame_render_complete){
           self.clock_cycle();
           let ppu_mutex = self.cpu.bus.get_PPU();
           let ppu_mutex_guard = ppu_mutex.lock().unwrap();
-          let mut frame_render_complete = ppu_mutex_guard.frame_render_complete;
+          frame_render_complete = ppu_mutex_guard.frame_render_complete;
           drop(ppu_mutex_guard);
           drop(ppu_mutex);
-          while (!frame_render_complete){
-            self.clock_cycle();
-            let ppu_mutex = self.cpu.bus.get_PPU();
-            let ppu_mutex_guard = ppu_mutex.lock().unwrap();
-            frame_render_complete = ppu_mutex_guard.frame_render_complete;
-            drop(ppu_mutex_guard);
-            drop(ppu_mutex);
+        }
+        let ppu_mutex = self.cpu.bus.get_PPU();
+        let mut ppu_mutex_guard = ppu_mutex.lock().unwrap();
+        ppu_mutex_guard.frame_render_complete = false;
+        ppu_mutex_guard.update_pattern_tables_vis_buffer(self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id);
+        drop(ppu_mutex_guard);
+        drop(ppu_mutex);
+      },
+      EmulatorMessage::PatternTablePaletteCycle => {
+        self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id += 1;
+        if self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id > 7 {
+          self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id = 0;
+        }
+      },
+
+
+
+      EmulatorMessage::EventOccurred(event) => {
+        match event {
+          Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Enter, modifiers }) => {
+            println!(".(pause/resume emulation) pressed!");
+            self.update(EmulatorMessage::TogglePauseEmulation);
+          },
+          Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Space, modifiers }) => {
+            // println!("Spacebar (For run 1 cpu instruction) pressed!");
+            self.update(EmulatorMessage::NextCPUInstruction);
+          },
+          Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Key5, modifiers }) => {
+            // println!("Enter(For run 10 cpu instructions) pressed!");
+            self.update(EmulatorMessage::Run50CPUInstructions);
+          },
+          Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::F, modifiers }) => {
+            println!("F(For next Frame) pressed!");
+            self.update(EmulatorMessage::NextFrame);
+          },
+          Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::P, modifiers }) => {
+            println!("P(cycle palette color) pressed!");
+            self.update(EmulatorMessage::PatternTablePaletteCycle);
+          },
+
+          _ => {
+
           }
-          let ppu_mutex = self.cpu.bus.get_PPU();
-          let mut ppu_mutex_guard = ppu_mutex.lock().unwrap();
-          ppu_mutex_guard.frame_render_complete = false;
-          ppu_mutex_guard.update_pattern_tables_vis_buffer(self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id);
-          drop(ppu_mutex_guard);
-          drop(ppu_mutex);
-        },
-        EmulatorMessage::PatternTablePaletteCycle => {
-          self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id += 1;
-          if self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id > 7 {
-            self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id = 0;
-          }
-        },
-
-
-
-        EmulatorMessage::EventOccurred(event) => {
-          match event {
-            Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Space, modifiers }) => {
-              // println!("Spacebar (For run 1 cpu instruction) pressed!");
-              self.update(EmulatorMessage::NextCPUInstruction);
-            },
-            Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Enter, modifiers }) => {
-              // println!("Enter(For run 10 cpu instructions) pressed!");
-              self.update(EmulatorMessage::Run50CPUInstructions);
-            },
-            Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::F, modifiers }) => {
-              println!("F(For next Frame) pressed!");
-              self.update(EmulatorMessage::NextFrame);
-            },
-            Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::P, modifiers }) => {
-              println!("P(cycle palette color) pressed!");
-              self.update(EmulatorMessage::PatternTablePaletteCycle);
-            },
-
-            _ => {
-
-            }
-          }
+        }
       }
     }
-    self.mem_visualizer.update(&mut self.cpu);
+    // self.mem_visualizer.update(&mut self.cpu);
 
+    // let ppu_mutex = self.cpu.bus.get_PPU();
+    // let mut ppu_mutex_guard = ppu_mutex.lock().unwrap();
+    // ppu_mutex_guard.update_pattern_tables_vis_buffer(self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id);
+    // drop(ppu_mutex_guard);
+    // drop(ppu_mutex);
     let ppu_mutex = self.cpu.bus.get_PPU();
-    let mut ppu_mutex_guard = ppu_mutex.lock().unwrap();
-    ppu_mutex_guard.update_pattern_tables_vis_buffer(self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id);
-    drop(ppu_mutex_guard);
-    drop(ppu_mutex);
-    self.ppu_screen_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
-    self.ppu_pattern_tables_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
-    self.ppu_palette_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
+    let ppu_mutex_guard = ppu_mutex.lock().unwrap();
+    let mut frame_render_complete = ppu_mutex_guard.frame_render_complete;
+    if (frame_render_complete) {
+      self.ppu_screen_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
+    }
+    
+    // self.ppu_pattern_tables_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
+    // self.ppu_palette_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
     Command::none()
     
   }
@@ -308,9 +328,9 @@ impl Application for RustNESs {
   }
 
   fn subscription(&self) -> Subscription<EmulatorMessage> {
-    iced_native::subscription::events().map(EmulatorMessage::EventOccurred)
+    // iced_native::subscription::events().map(EmulatorMessage::EventOccurred)
     // if !self.paused {
-    //   return iced::time::every(time::Duration::from_millis(1000 / self.cycles_per_second)).map(EmulatorMessage::Tick);
+      return iced::time::every(time::Duration::from_micros((1000000.0 / self.cycles_per_second) as u64)).map(|var|{EmulatorMessage::Tick});
     // }
   }
 }
