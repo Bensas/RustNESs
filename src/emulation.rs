@@ -1493,6 +1493,7 @@ pub mod Ben2C02 {
     }
   }
 
+  #[derive(Clone, Copy)]
   pub struct VramRegister {
     flags: u16
   }
@@ -1626,6 +1627,11 @@ pub mod Ben2C02 {
 			  bg_next_tile_lsb: 0,
 			  bg_next_tile_msb: 0,
 
+        bg_shifter_pattern_lo: 0,
+        bg_shifter_pattern_hi: 0,
+        bg_shifter_attrib_lo: 0,
+        bg_shifter_attrib_hi: 0,
+
         pattern_tables: [[0; 4096]; 2],
         pattern_tables_mem_bounds: (0x0000, 0x1FFF),
         name_tables: [[0; 1024]; 2],
@@ -1675,65 +1681,75 @@ pub mod Ben2C02 {
         }
 
         if ((self.cycle >= 2 && self.cycle < 258) || (self.cycle >= 321 && self.cycle < 338)) {
-          // self.update_shif_registers();
+          if (self.mask_reg.get_render_background() != 0) {
+            self.update_background_shift_registers();
+          }
           match ((self.cycle - 1) % 8) {
             0 => {
-              // self.load_background_shift_registers_with_next_tile();
-              // self.bg_next_tile_id = self.read_from_ppu_bus(0x2000 | (self.vram_addr & 0xFFF));
+              self.load_background_shift_registers_with_next_tile();
+              self.bg_next_tile_id = self.read_from_ppu_bus(0x2000 | (self.vram_reg.flags & 0xFFF)).unwrap();
             },
             1 => {
 
             },
             2 => {
-              // self.bg_next_tile_attribute = self.read_from_ppu_bus(
-              //                                     0x23C0 |
-              //                                     (self.vram.nametable_y << 11) |
-              //                                     (self.vram.nametable_x << 10) |
-              //                                     ((self.vram.coarse_y >> 2) << 3) |
-              //                                     (self.vram.coarse_x >> 2));
-              // if ((self.vram.coarse_y & 0x02) != 0) {
-              //   self.bg_tile_next_attribute >>= 4;
-              // }
-              // if ((self.vram.coarse_x & 0x02) != 0) {
-              //   self.bg_tile_next_attribute >>= 2;
-              // }
-              // self.bg_tile_next_attribute &= 0x03;
+              self.bg_next_tile_attribute = self.read_from_ppu_bus(
+                                                  0x23C0 |
+                                                  ((self.vram_reg.get_nametable_y() as u16) << 11) |
+                                                  ((self.vram_reg.get_nametable_x() as u16) << 10) |
+                                                  (((self.vram_reg.get_coarse_y() as u16) >> 2) << 3) |
+                                                  ((self.vram_reg.get_coarse_x() as u16) >> 2)).unwrap();
+              if ((self.vram_reg.get_coarse_y() & 0x02) != 0) {
+                self.bg_next_tile_attribute >>= 4;
+              }
+              if ((self.vram_reg.get_coarse_x() & 0x02) != 0) {
+                self.bg_next_tile_attribute >>= 2;
+              }
+              self.bg_next_tile_attribute &= 0x03;
             },
             3 => {
 
             },
             4 => {
-              // self.bg_next_tile_lsb = self.read_from_ppu_bus(
-              //   (self.controller_reg.get_pattern_background() << 12) +
-              //         ((self.bg_next_tile_id as u16) << 4) +
-              //         (self.vram.fine_y));
+              self.bg_next_tile_lsb = self.read_from_ppu_bus(
+                                            ((self.controller_reg.get_pattern_background() as u16) << 12) +
+                                                  ((self.bg_next_tile_id as u16) << 4) +
+                                                  (self.vram_reg.get_fine_y() as u16)).unwrap();
             },
             5 => {
 
             },
             6 => {
-              // self.bg_next_tile_msb = self.read_from_ppu_bus(
-              //   (self.controller_reg.get_pattern_background() << 12) +
-              //         ((self.bg_next_tile_id as u16) << 4) +
-              //         (self.vram.fine_y) + 8);
+              self.bg_next_tile_msb = self.read_from_ppu_bus(
+                ((self.controller_reg.get_pattern_background() as u16) << 12) +
+                      ((self.bg_next_tile_id as u16) << 4) +
+                      (self.vram_reg.get_fine_y() as u16) + 8).unwrap();
             },
             7 => {
-              // IncrementScrollX()
+              if self.mask_reg.get_render_background() != 0 || self.mask_reg.get_render_sprites() != 0 {
+                self.increment_scroll_x();
+              }
             },
             _ => {}
           }
         }
 
         if (self.cycle == 256) {
-          // IncrementScrollY()
+          if self.mask_reg.get_render_background() != 0 || self.mask_reg.get_render_sprites() != 0 {
+            self.increment_scroll_y();
+          }
         }
 
         if (self.cycle == 257) {
-          // TransferAddressX()
+          if self.mask_reg.get_render_background() != 0 || self.mask_reg.get_render_sprites() != 0 {
+            self.transfer_temp_vram_x();
+          }
         }
 
         if (self.scan_line == -1 && self.cycle >= 280 && self.cycle < 305) {
-          // TransferAddressY()
+          if self.mask_reg.get_render_background() != 0 || self.mask_reg.get_render_sprites() != 0 {
+            self.transfer_temp_vram_y();
+          }
         }
       }
 
@@ -1748,23 +1764,23 @@ pub mod Ben2C02 {
         }
       }
 
-      let bg_pixel_value: u8 = 0;
-      let bg_palette_id: u8 = 0;
+      let mut bg_pixel_value: u8 = 0;
+      let mut bg_palette_id: u8 = 0;
 
       if (self.mask_reg.get_render_background() != 0) {
-        // let bit_mux: u16 = 0x8000 >> self.fine_x;
+        let bit_mux: u16 = 0x8000 >> self.fine_x;
         
-        // let bg_pixel0 = ((self.bg_shifter_pattern_lo & bit_mux) > 0) as u8;
-        // let bg_pixel1 = ((self.bg_shifter_pattern_hi & bit_mux) > 0) as u8;
-        // bg_pixel_value = bg_pixel1 << 1 | bg_pixel0;
+        let bg_pixel0 = ((self.bg_shifter_pattern_lo & bit_mux) > 0) as u8;
+        let bg_pixel1 = ((self.bg_shifter_pattern_hi & bit_mux) > 0) as u8;
+        bg_pixel_value = bg_pixel1 << 1 | bg_pixel0;
 
-        // let bg_palette0 = ((self.bg_shifter_attr_lo & bit_mux) > 0) as u8;
-        // let bg_palette1 = ((self.bg_shifter_attr_hi & bit_mux) > 0) as u8;
-        // bg_palette_id = bg_palette1 << 1 | bg_palette0;
+        let bg_palette0 = ((self.bg_shifter_attrib_lo & bit_mux) > 0) as u8;
+        let bg_palette1 = ((self.bg_shifter_attrib_hi & bit_mux) > 0) as u8;
+        bg_palette_id = bg_palette1 << 1 | bg_palette0;
       }
 
       if (self.cycle < 256 && self.scan_line < 240 && self.scan_line != -1) {
-        // self.screen_vis_buffer[self.scan_line as usize][self.cycle as usize] = self.get_color_from_palette(bg_pixel_value, bg_palette_id);
+        self.screen_vis_buffer[self.scan_line as usize][self.cycle as usize] = self.get_color_from_palette(bg_pixel_value, bg_palette_id);
       }
 
     }
@@ -1830,10 +1846,10 @@ pub mod Ben2C02 {
     }
 
     fn update_background_shift_registers(&mut self) {
-      self.bg_shifter_pattern_lo << 1;
-			self.bg_shifter_pattern_hi << 1;
-			self.bg_shifter_attrib_lo << 1;
-			self.bg_shifter_attrib_hi << 1;
+      self.bg_shifter_pattern_lo <<= 1;
+			self.bg_shifter_pattern_hi <<= 1;
+			self.bg_shifter_attrib_lo <<= 1;
+			self.bg_shifter_attrib_hi <<= 1;
     }
 
     // Refer to https://www.nesdev.org/wiki/PPU_programmer_reference#Pattern_tables

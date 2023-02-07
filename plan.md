@@ -269,7 +269,7 @@ Once we have this program, we can test using the following:
 					- set the `coarse_x` bits of the `tram` register to the following 5 bits of the written data
 				- When `writing_high_byte_of_addr == false`:
 					- Do the same, but with `fine_y` and `coarse_y` (note that, unlike `fine_x`, `fine_y` is a part of the `tram` register)
-	- [PENDING] clock_cycle() function:
+	- clock_cycle() function:
 		- Following the diagram https://www.nesdev.org/w/images/default/4/4f/Ppu.svg, we store relevant data in the folloging PPU variables:
 			- `bg_next_tile_id: u8`
 			- `bg_next_tile_attribute: u8`
@@ -310,7 +310,5 @@ Once we have this program, we can test using the following:
 			- `bg_shifter_attrib_lo << 1`
 			- `bg_shifter_attrib_hi << 1`
 
-	
-- Rename `controller_reg` variable to `control_reg`
 - GUI:
 	- For testing, we can visualize the pattern table information (palette id for each tile in the nametable)
