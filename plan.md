@@ -297,13 +297,13 @@ Once we have this program, we can test using the following:
 		- `bg_shifter_pattern_hi: u16`
 		- `bg_shifter_attrib_lo: u16`
 		- `bg_shifter_attrib_hi: u16`
-	- [PENDING] Functions for shift register handling:
-		- [PENDING] LoadBackgroundShifters:
+	- Functions for shift register handling:
+		- LoadBackgroundShifters:
 			- `bg_shifter_pattern_lo = (bg_shifter_pattern_lo & 0xFF00) | bg_next_tile_lsb;`
 			- `bg_shifter_pattern_hi = (bg_shifter_pattern_hi & 0xFF00) | bg_next_tile_msb;`
 			- `bg_shifter_attrib_lo = (bg_shifter_attrib_lo & 0xFF00) | ((bg_next_tile_attrib & 0b01)? 0xFF : 0x00);`
 			- `bg_shifter_attrib_hi = (bg_shifter_attrib_hi & 0xFF00) | ((bg_next_tile_attrib & 0b10)? 0xFF : 0x00);`
-		- [PENDING] UpdateShifters:
+		- UpdateShifters:
 			- Check `if mask.render_background` in order to do what it needs to do
 			- `bg_shifter_pattern_lo << 1`
 			- `bg_shifter_pattern_hi << 1`

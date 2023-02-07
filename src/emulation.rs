@@ -1813,6 +1813,28 @@ pub mod Ben2C02 {
       self.vram_reg.set_fine_y(self.temp_vram_reg.get_fine_y());
     }
 
+    fn load_background_shift_registers_with_next_tile(&mut self) {
+      self.bg_shifter_pattern_lo = (self.bg_shifter_pattern_lo & 0xFF00) | (self.bg_next_tile_lsb as u16);
+			self.bg_shifter_pattern_hi = (self.bg_shifter_pattern_hi & 0xFF00) | (self.bg_next_tile_msb as u16);
+      if (self.bg_next_tile_attribute & 0b01) != 0 {
+        self.bg_shifter_attrib_lo = (self.bg_shifter_attrib_lo & 0xFF00) | 0xFF;
+      } else {
+        self.bg_shifter_attrib_lo = (self.bg_shifter_attrib_lo & 0xFF00) | 0x00;
+      }
+      
+      if (self.bg_next_tile_attribute & 0b10) != 0 {
+        self.bg_shifter_attrib_hi = (self.bg_shifter_attrib_hi & 0xFF00) | 0xFF;
+      } else {
+        self.bg_shifter_attrib_hi = (self.bg_shifter_attrib_hi & 0xFF00) | 0x00;
+      }
+    }
+
+    fn update_background_shift_registers(&mut self) {
+      self.bg_shifter_pattern_lo << 1;
+			self.bg_shifter_pattern_hi << 1;
+			self.bg_shifter_attrib_lo << 1;
+			self.bg_shifter_attrib_hi << 1;
+    }
 
     // Refer to https://www.nesdev.org/wiki/PPU_programmer_reference#Pattern_tables
     // for a clearer explanation :)
