@@ -281,14 +281,14 @@ Once we have this program, we can test using the following:
 				- Increment the `coarse_x` value of the `vram` register
 				- If `coarse_x` goes above 31, we switch the value of `nametable_x` (Does this assume that we use vertical mirroring?) and reset `coarse_x` to 0
 			- IncrementY will
-				- Increment the `fine_x` value of the `vram` register
+				- Increment the `fine_y` value of the `vram` register
 				- If `fine_y` goes above 7, we increase the value of `coarse_y` and reset `fine_y` to 0.
 				- If `coarse_y` goes above 29, we switch the value of `nametable_y` and reset `coarse_y` to 0
 				- If `coarse_y` goes above 31 (we're in attribute memory), we only reset `coarse_y`.
-			- TransferAddresssX will
+			- [PENDING] TransferAddresssX will
 				- `vram.nametable_x = tram.nametable_x`
 				- `vram.coarse_x = tram.coarse_x`
-			- TransferAddresssY will
+			- [PENDING] TransferAddresssY will
 				- `vram.nametable_y = tram.nametable_y`
 				- `vram.coarse_y = tram.coarse_y`
 				- `vram.fine_y = tram.fine_y`
@@ -298,12 +298,12 @@ Once we have this program, we can test using the following:
 		- `bg_shifter_attrib_lo: u16`
 		- `bg_shifter_attrib_hi: u16`
 	- [PENDING] Functions for shift register handling:
-		- LoadBackgroundShifters:
+		- [PENDING] LoadBackgroundShifters:
 			- `bg_shifter_pattern_lo = (bg_shifter_pattern_lo & 0xFF00) | bg_next_tile_lsb;`
 			- `bg_shifter_pattern_hi = (bg_shifter_pattern_hi & 0xFF00) | bg_next_tile_msb;`
 			- `bg_shifter_attrib_lo = (bg_shifter_attrib_lo & 0xFF00) | ((bg_next_tile_attrib & 0b01)? 0xFF : 0x00);`
 			- `bg_shifter_attrib_hi = (bg_shifter_attrib_hi & 0xFF00) | ((bg_next_tile_attrib & 0b10)? 0xFF : 0x00);`
-		- UpdateShifters:
+		- [PENDING] UpdateShifters:
 			- Check `if mask.render_background` in order to do what it needs to do
 			- `bg_shifter_pattern_lo << 1`
 			- `bg_shifter_pattern_hi << 1`

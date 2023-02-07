@@ -1574,6 +1574,18 @@ pub mod Ben2C02 {
     temp_vram_reg: VramRegister,
     fine_x: u8,
 
+    // Scroll-related variables
+    bg_next_tile_id: u8,
+    bg_next_tile_attribute: u8,
+    bg_next_tile_lsb: u8,
+    bg_next_tile_msb: u8,
+
+    // Shift registers
+    bg_shifter_pattern_lo: u16,
+		bg_shifter_pattern_hi: u16,
+		bg_shifter_attrib_lo: u16,
+		bg_shifter_attrib_hi: u16,
+
     pattern_tables: [[u8; 4096]; 2],
     pattern_tables_mem_bounds: (u16, u16),
     name_tables: [[u8; 1024]; 2],
@@ -1608,6 +1620,11 @@ pub mod Ben2C02 {
         vram_reg: VramRegister::new(),
         temp_vram_reg: VramRegister::new(),
         fine_x: 0,
+
+        bg_next_tile_id: 0,
+			  bg_next_tile_attribute: 0,
+			  bg_next_tile_lsb: 0,
+			  bg_next_tile_msb: 0,
 
         pattern_tables: [[0; 4096]; 2],
         pattern_tables_mem_bounds: (0x0000, 0x1FFF),
@@ -1750,6 +1767,39 @@ pub mod Ben2C02 {
         // self.screen_vis_buffer[self.scan_line as usize][self.cycle as usize] = self.get_color_from_palette(bg_pixel_value, bg_palette_id);
       }
 
+    }
+
+    fn increment_scroll_x(&mut self) {
+      if (self.vram_reg.get_coarse_x() == 31) {
+        self.vram_reg.set_nametable_x((self.vram_reg.get_nametable_x() == 0) as u8);
+        self.vram_reg.set_coarse_x(0);
+      } else {
+        self.vram_reg.set_coarse_x(self.vram_reg.get_coarse_x() + 1);
+      }
+    }
+
+    fn increment_scroll_y(&mut self) {
+			if (self.vram_reg.get_fine_y() < 7)
+			{
+				self.vram_reg.set_fine_y(self.vram_reg.get_fine_y() + 1);
+			}
+			else
+			{
+        self.vram_reg.set_fine_y(0);
+
+				if (self.vram_reg.get_coarse_y() == 29) {
+          self.vram_reg.set_nametable_y((self.vram_reg.get_nametable_y() == 0) as u8);
+          self.vram_reg.set_coarse_y(0)
+        }
+				else if (self.vram_reg.get_coarse_y() == 31)
+				{
+					self.vram_reg.set_coarse_y(0)
+				}
+				else
+				{
+					self.vram_reg.set_coarse_y(self.vram_reg.get_coarse_y() + 1);
+				}
+			}
     }
 
 
