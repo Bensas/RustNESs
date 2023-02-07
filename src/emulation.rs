@@ -1911,6 +1911,9 @@ pub mod Ben2C02 {
           }
         } else if addr <= 0x2FFF {
           self.name_tables[1][(addr & 0x3FF) as usize] = data;
+        } else {
+          // Addresses 3000-3EFF mirror addresses 2000-2EFF
+          return self.write_to_ppu_memory(addr - 0x1000, data);
         }
         return Ok(());
       }
@@ -1953,7 +1956,8 @@ pub mod Ben2C02 {
         } else if addr <= 0x2FFF {
           return Ok(self.name_tables[1][(addr & 0x3FF) as usize]);
         } else {
-          panic!("Tried to access name_table memory in PPU bus but address was invalid! (Address: 0x{:X})", addr);
+          // Addresses 3000-3EFF mirror addresses 2000-2EFF
+          return self.read_from_ppu_memory(addr - 0x1000);
         }
       }
       else if self.in_palette_memory_bounds(addr) {
@@ -1974,7 +1978,7 @@ pub mod Ben2C02 {
         },
         Err(message) => {
           println!("Tried to read from cartridge, but failed with error: {}. Reading from PPU internal memory instead :)" , message);
-          return Ok(self.read_from_ppu_memory(self.vram_reg.flags).unwrap());
+          return Ok(self.read_from_ppu_memory(addr).unwrap());
         }
       }
     }
