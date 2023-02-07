@@ -105,7 +105,7 @@ impl Application for RustNESs {
     return (Self { 
               cpu,
               current_cycle: 0,
-              paused: true,
+              paused: false,
               cycles_per_second: EMULATOR_CYCLES_PER_SECOND,
               ppu_screen_buffer_visualizer: PPUScreenBufferVisualizer {
                 screen_vis_buffer: [[emulation::graphics::Color::new(0, 0, 0); 256]; 240],
@@ -308,10 +308,12 @@ impl Application for RustNESs {
   }
 
   fn subscription(&self) -> Subscription<EmulatorMessage> {
-    iced_native::subscription::events().map(EmulatorMessage::EventOccurred)
-    // if !self.paused {
-    //   return iced::time::every(time::Duration::from_millis(1000 / self.cycles_per_second)).map(EmulatorMessage::Tick);
-    // }
+    // iced_native::subscription::events().map(EmulatorMessage::EventOccurred)
+    if !self.paused {
+      return iced::time::every(time::Duration::from_millis(1000 / self.cycles_per_second)).map(|em| {EmulatorMessage::NextFrame});
+    } else {
+      return Subscription::none();
+    }
   }
 }
 
