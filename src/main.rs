@@ -1,6 +1,7 @@
 #![allow(unused_parens)]
 mod emulation;
 use std::cell::RefCell;
+use std::env;
 use std::rc::Rc;
 use std::sync::{Mutex, Arc, MutexGuard};
 
@@ -25,6 +26,7 @@ use iced::widget::canvas::{
 
 
 fn main() {
+  env::set_var("RUST_BACKTRACE", "1");
   RustNESs::run(Settings::default());
 }
 
@@ -421,7 +423,7 @@ impl canvas::Program<EmulatorMessage> for PPUScreenBufferVisualizer {
           let pixel_color = self.screen_vis_buffer[i][j];
 
           frame.fill_rectangle(
-              Point::new((i as f32) * self.pixel_height as f32, (j as f32) * self.pixel_height as f32),
+              Point::new( (j as f32) * self.pixel_height as f32, (i as f32) * self.pixel_height as f32),
               Size::new(self.pixel_height, self.pixel_height),
               pixel_color.to_iced_color(),
           );
