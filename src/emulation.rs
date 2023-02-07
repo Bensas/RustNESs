@@ -1802,6 +1802,17 @@ pub mod Ben2C02 {
 			}
     }
 
+    fn transfer_temp_vram_x(&mut self) {
+      self.vram_reg.set_nametable_x(self.temp_vram_reg.get_nametable_x());
+      self.vram_reg.set_coarse_x(self.temp_vram_reg.get_coarse_x());
+    }
+
+    fn transfer_temp_vram_y(&mut self) {
+      self.vram_reg.set_nametable_y(self.temp_vram_reg.get_nametable_y());
+      self.vram_reg.set_coarse_y(self.temp_vram_reg.get_coarse_y());
+      self.vram_reg.set_fine_y(self.temp_vram_reg.get_fine_y());
+    }
+
 
     // Refer to https://www.nesdev.org/wiki/PPU_programmer_reference#Pattern_tables
     // for a clearer explanation :)

@@ -275,7 +275,7 @@ Once we have this program, we can test using the following:
 			- `bg_next_tile_attribute: u8`
 			- `bg_next_tile_lsb: u8`
 			- `bg_next_tile_msb: u8` 
-		- [PENDING] We include functions for scrolling:
+		- We include functions for scrolling:
 			- They all check `if (mask.render_background || mask.render_sprites)` in order to do what they need to do.
 			- IncrementX will:
 				- Increment the `coarse_x` value of the `vram` register
@@ -285,10 +285,10 @@ Once we have this program, we can test using the following:
 				- If `fine_y` goes above 7, we increase the value of `coarse_y` and reset `fine_y` to 0.
 				- If `coarse_y` goes above 29, we switch the value of `nametable_y` and reset `coarse_y` to 0
 				- If `coarse_y` goes above 31 (we're in attribute memory), we only reset `coarse_y`.
-			- [PENDING] TransferAddresssX will
+			- TransferAddresssX will
 				- `vram.nametable_x = tram.nametable_x`
 				- `vram.coarse_x = tram.coarse_x`
-			- [PENDING] TransferAddresssY will
+			- TransferAddresssY will
 				- `vram.nametable_y = tram.nametable_y`
 				- `vram.coarse_y = tram.coarse_y`
 				- `vram.fine_y = tram.fine_y`
