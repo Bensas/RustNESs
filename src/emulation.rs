@@ -1219,7 +1219,7 @@ File: Ben2C02.rs
 */
 
 pub mod Ben2C02 {
-  use std::sync::{Arc, Mutex};
+  use std::{sync::{Arc, Mutex}, cell::RefCell, rc::Rc};
 
   use super::{graphics::Color, Device::Device, bitwise_utils, Cartridge::{Cartridge, MirroringMode}};
   use rand::Rng;
@@ -1559,7 +1559,7 @@ pub mod Ben2C02 {
   pub struct Ben2C02 {
     memory_bounds: (u16, u16),
 
-    cartridge: Arc<Mutex<Cartridge>>,
+    cartridge: Rc<RefCell<Cartridge>>,
 
     scan_line: i16,
     cycle: i16,
@@ -1603,7 +1603,7 @@ pub mod Ben2C02 {
   }
 
   impl Ben2C02 {
-    pub fn new(cartridge: Arc<Mutex<Cartridge>>) -> Ben2C02 {
+    pub fn new(cartridge: Rc<RefCell<Cartridge>>) -> Ben2C02 {
       return Ben2C02 {
         memory_bounds: PPU_MEMORY_BOUNDS,
         cartridge: cartridge,
@@ -1889,7 +1889,7 @@ pub mod Ben2C02 {
         return Ok(());
       }
       else if self.in_name_table_memory_bounds(addr) {
-        let mirroring_mode = self.cartridge.lock().unwrap().mirroring_mode;
+        let mirroring_mode = self.cartridge.borrow_mut().mirroring_mode;
 
         if addr <= 0x23FF {
           self.name_tables[0][(addr & 0x3FF) as usize] = data;
@@ -1934,7 +1934,7 @@ pub mod Ben2C02 {
         return Ok(data);
       }
       else if self.in_name_table_memory_bounds(addr) {
-        let mirroring_mode = self.cartridge.lock().unwrap().mirroring_mode;
+        let mirroring_mode = self.cartridge.borrow().mirroring_mode;
         if addr <= 0x23FF {
           return Ok(self.name_tables[0][(addr & 0x3FF) as usize]);
         } else if addr <= 0x27FF {
@@ -1971,7 +1971,7 @@ pub mod Ben2C02 {
     }
 
     fn read_from_ppu_bus(&self, addr: u16) -> Result<u8, String> {
-      let read_from_cartridge = self.cartridge.lock().unwrap().read(addr);
+      let read_from_cartridge = self.cartridge.borrow_mut().read(addr);
       match read_from_cartridge {
         Ok(retrieved_data) => {
           return Ok(retrieved_data);
@@ -1984,7 +1984,7 @@ pub mod Ben2C02 {
     }
 
     fn write_to_ppu_bus(&mut self, addr: u16, data: u8) -> Result<(), String> {
-      let write_to_cartridge = self.cartridge.lock().unwrap().write(addr, data);
+      let write_to_cartridge = self.cartridge.borrow_mut().write(addr, data);
       match write_to_cartridge {
         Ok(()) => {
           return Ok(());
@@ -2468,29 +2468,29 @@ File: bus.rs
 */
 
 pub mod Bus16Bit {
-  use std::sync::{Arc, Mutex};
+  use std::{sync::{Arc, Mutex}, cell::RefCell, rc::Rc};
 
   use super::{Device::Device, Ben2C02::Ben2C02, hex_utils, Cartridge::create_cartridge_from_ines_file, Ram::Ram2K};
 
   pub struct Bus16Bit {
-    pub devices: Vec<Arc<Mutex<dyn Device>>>,
-    pub PPU: Arc<Mutex<Ben2C02>>
+    pub devices: Vec<Rc<RefCell<dyn Device>>>,
+    pub PPU: Rc<RefCell<Ben2C02>>
   }
   
   // Assumed to be a 16-bit bus
   impl Bus16Bit {
   
     pub fn new(rom_file_path: &str) -> Bus16Bit {
-      let ram = Arc::new(Mutex::new(Ram2K::new((0x0000, 0x1FFF))));
-      let apu_mock = Arc::new(Mutex::new(Ram2K::new((0x4000, 0x4017))));
-      let cartridge = Arc::new(Mutex::new(create_cartridge_from_ines_file(rom_file_path).unwrap()));
-      let PPU = Arc::new(Mutex::new(Ben2C02::new(cartridge.clone())));
+      let ram = Rc::new(RefCell::new(Ram2K::new((0x0000, 0x1FFF))));
+      let apu_mock = Rc::new(RefCell::new(Ram2K::new((0x4000, 0x4017))));
+      let cartridge = Rc::new(RefCell::new(create_cartridge_from_ines_file(rom_file_path).unwrap()));
+      let PPU = Rc::new(RefCell::new(Ben2C02::new(cartridge.clone())));
   
-      let mut devices: Vec<Arc<Mutex<dyn Device>>> = vec![];
-      devices.push(ram.clone());
-      devices.push(apu_mock.clone());
+      let mut devices: Vec<Rc<RefCell<dyn Device>>> = vec![];
+      devices.push(ram);
+      devices.push(apu_mock);
       devices.push(PPU.clone());
-      devices.push(cartridge.clone());
+      devices.push(cartridge);
       return Bus16Bit {
         devices,
         PPU
@@ -2498,10 +2498,9 @@ pub mod Bus16Bit {
     }
   
     pub fn read(&mut self, addr: u16, readOnly: bool) -> Result<u8, String> {
-      for device_mutex in self.devices.iter() {
-        let mut device = device_mutex.lock().unwrap();
-        if device.in_memory_bounds(addr) {
-          return device.read(addr);
+      for device in self.devices.iter() {
+        if device.borrow().in_memory_bounds(addr) {
+          return device.borrow_mut().read(addr);
         }
       }
       return Ok(0);
@@ -2521,10 +2520,9 @@ pub mod Bus16Bit {
     }
   
     pub fn write(&mut self, addr: u16, content: u8) -> Result<(), String>{
-      for device_mutex in self.devices.iter_mut() {
-        let mut device = device_mutex.lock().unwrap();
-        if device.in_memory_bounds(addr) {
-          return device.write(addr, content);
+      for device in self.devices.iter_mut() {
+        if device.borrow().in_memory_bounds(addr) {
+          return device.borrow_mut().write(addr, content);
         }
       }
       return Ok(());
@@ -2550,9 +2548,9 @@ pub mod Bus16Bit {
       return result;
     }
   
-    pub fn get_PPU(&mut self) -> Arc<Mutex<Ben2C02>> {
-      return self.PPU.clone();
-    }
+    // pub fn get_PPU(&mut self) -> Rc<RefCell<Ben2C02>> {
+    //   return self.PPU;
+    // }
   }
   
   

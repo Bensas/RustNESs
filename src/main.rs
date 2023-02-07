@@ -56,14 +56,10 @@ impl RustNESs {
   fn clock_cycle(&mut self) {
     self.cpu.clock_cycle();
     if self.current_cycle % 3 == 0 {
-      let ppu_mutex = self.cpu.bus.get_PPU();
-      let mut ppu_mutex_guard = ppu_mutex.lock().unwrap();
-      ppu_mutex_guard.clock_cycle();
-      if (ppu_mutex_guard.trigger_cpu_nmi) {
+      self.cpu.bus.PPU.borrow_mut().clock_cycle();
+      if (self.cpu.bus.PPU.borrow().trigger_cpu_nmi) {
         // println!("PPU triggered CPU nmi!");
-        ppu_mutex_guard.trigger_cpu_nmi = false;
-        drop(ppu_mutex_guard);
-        drop(ppu_mutex);
+        self.cpu.bus.PPU.borrow_mut().trigger_cpu_nmi = false;
         self.cpu.nmi();
       }
     }
@@ -181,25 +177,15 @@ impl Application for RustNESs {
         },
         EmulatorMessage::NextFrame => {
           self.clock_cycle();
-          let ppu_mutex = self.cpu.bus.get_PPU();
-          let ppu_mutex_guard = ppu_mutex.lock().unwrap();
-          let mut frame_render_complete = ppu_mutex_guard.frame_render_complete;
-          drop(ppu_mutex_guard);
-          drop(ppu_mutex);
+
+          let mut frame_render_complete = self.cpu.bus.PPU.borrow().frame_render_complete;
           while (!frame_render_complete){
             self.clock_cycle();
-            let ppu_mutex = self.cpu.bus.get_PPU();
-            let ppu_mutex_guard = ppu_mutex.lock().unwrap();
-            frame_render_complete = ppu_mutex_guard.frame_render_complete;
-            drop(ppu_mutex_guard);
-            drop(ppu_mutex);
+            frame_render_complete = self.cpu.bus.PPU.borrow().frame_render_complete;
           }
-          let ppu_mutex = self.cpu.bus.get_PPU();
-          let mut ppu_mutex_guard = ppu_mutex.lock().unwrap();
-          ppu_mutex_guard.frame_render_complete = false;
-          ppu_mutex_guard.update_pattern_tables_vis_buffer(self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id);
-          drop(ppu_mutex_guard);
-          drop(ppu_mutex);
+          self.cpu.bus.PPU.borrow_mut().frame_render_complete = false;
+          self.cpu.bus.PPU.borrow_mut().update_pattern_tables_vis_buffer(self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id);
+
         },
         EmulatorMessage::PatternTablePaletteCycle => {
           self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id += 1;
@@ -237,14 +223,10 @@ impl Application for RustNESs {
     }
     self.mem_visualizer.update(&mut self.cpu);
 
-    let ppu_mutex = self.cpu.bus.get_PPU();
-    let mut ppu_mutex_guard = ppu_mutex.lock().unwrap();
-    ppu_mutex_guard.update_pattern_tables_vis_buffer(self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id);
-    drop(ppu_mutex_guard);
-    drop(ppu_mutex);
-    self.ppu_screen_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
-    self.ppu_pattern_tables_buffer_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
-    self.ppu_palette_visualizer.update_data(&self.cpu.bus.PPU.lock().unwrap());
+    self.cpu.bus.PPU.borrow_mut().update_pattern_tables_vis_buffer(self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id);
+    self.ppu_screen_buffer_visualizer.update_data(&self.cpu.bus.PPU.borrow_mut());
+    self.ppu_pattern_tables_buffer_visualizer.update_data(&self.cpu.bus.PPU.borrow_mut());
+    self.ppu_palette_visualizer.update_data(&self.cpu.bus.PPU.borrow_mut());
     Command::none()
     
   }
@@ -297,7 +279,7 @@ impl Application for RustNESs {
           row![
             text("PPU flags:").size(20),
             text("Vertical Blank: "),
-            text(self.cpu.bus.PPU.lock().unwrap().status_reg.get_vertical_blank().to_string()),
+            text(self.cpu.bus.PPU.borrow().status_reg.get_vertical_blank().to_string()),
           ],
         ]
       ]
