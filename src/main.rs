@@ -30,7 +30,7 @@ fn main() {
   RustNESs::run(Settings::default());
 }
 
-const EMULATOR_CYCLES_PER_SECOND: u64 = 10;
+const EMULATOR_CYCLES_PER_SECOND: u64 = 5;
 const SCREEN_HEIGHT: u16 = 500;
 const PATTERN_TABLE_VIS_HEIGHT: u16 = 300;
 const PALETTE_VIS_HEIGHT: u16 = 30;
@@ -70,8 +70,7 @@ impl RustNESs {
 
 #[derive(Debug, Clone)]
 enum EmulatorMessage {
-  ResumeEmulation,
-  PauseEmulation,
+  TogglePauseEmulation,
   NextCPUInstruction,
   NextFrame,
   Run50CPUInstructions,
@@ -101,7 +100,7 @@ impl Application for RustNESs {
     return (Self { 
               cpu,
               current_cycle: 0,
-              paused: true,
+              paused: false,
               cycles_per_second: EMULATOR_CYCLES_PER_SECOND,
               ppu_screen_buffer_visualizer: PPUScreenBufferVisualizer {
                 screen_vis_buffer: [[emulation::graphics::Color::new(0, 0, 0); 256]; 240],
@@ -144,11 +143,8 @@ impl Application for RustNESs {
   fn update(&mut self, message: Self::Message) -> iced::Command<EmulatorMessage> {
 
     match message {
-        EmulatorMessage::ResumeEmulation => {
-          self.paused = false;
-        },
-        EmulatorMessage::PauseEmulation => {
-          self.paused = true;
+        EmulatorMessage::TogglePauseEmulation => {
+          self.paused = !self.paused;
         },
         EmulatorMessage::NextCPUInstruction => {
           self.clock_cycle();
@@ -167,7 +163,7 @@ impl Application for RustNESs {
         },
 
         EmulatorMessage::Run50CPUInstructions => {
-          for i in 0..500 {
+          for i in 0..50 {
             self.clock_cycle();
             while (self.cpu.current_instruction_remaining_cycles > 0){
               self.clock_cycle();
@@ -202,8 +198,8 @@ impl Application for RustNESs {
               // println!("Spacebar (For run 1 cpu instruction) pressed!");
               self.update(EmulatorMessage::NextCPUInstruction);
             },
-            Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Enter, modifiers }) => {
-              // println!("Enter(For run 10 cpu instructions) pressed!");
+            Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Key5, modifiers }) => {
+              // println!("Key5(For run 50 cpu instructions) pressed!");
               self.update(EmulatorMessage::Run50CPUInstructions);
             },
             Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::F, modifiers }) => {
@@ -213,6 +209,10 @@ impl Application for RustNESs {
             Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::P, modifiers }) => {
               println!("P(cycle palette color) pressed!");
               self.update(EmulatorMessage::PatternTablePaletteCycle);
+            },
+            Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::Enter, modifiers }) => {
+              println!("Enter(play/pause emulation) pressed!");
+              self.update(EmulatorMessage::TogglePauseEmulation);
             },
 
             _ => {
@@ -290,10 +290,12 @@ impl Application for RustNESs {
   }
 
   fn subscription(&self) -> Subscription<EmulatorMessage> {
-    iced_native::subscription::events().map(EmulatorMessage::EventOccurred)
-    // if !self.paused {
-    //   return iced::time::every(time::Duration::from_millis(1000 / self.cycles_per_second)).map(EmulatorMessage::Tick);
-    // }
+    let mut subs = vec![];
+    subs.push(iced_native::subscription::events().map(EmulatorMessage::EventOccurred));
+    if !self.paused {
+      subs.push(iced::time::every(time::Duration::from_millis(1000 / self.cycles_per_second)).map(|em| {EmulatorMessage::NextFrame}));
+    }
+    return Subscription::batch(subs);
   }
 }
 
