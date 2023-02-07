@@ -1590,7 +1590,7 @@ pub mod Ben2C02 {
   }
 
   impl Ben2C02 {
-    pub fn new(cartridge: Arc<Mutex<dyn Device>>) -> Ben2C02 {
+    pub fn new(cartridge: Arc<Mutex<Cartridge>>) -> Ben2C02 {
       return Ben2C02 {
         memory_bounds: PPU_MEMORY_BOUNDS,
         cartridge: cartridge,
@@ -1961,12 +1961,13 @@ pub mod Ben2C02 {
       if self.in_memory_bounds(addr) {
         let mirrored_addr = addr & 0x0007;
         match mirrored_addr {
-          0x0 => { // Control
-            return Ok(self.controller_reg.flags);
+          0x0 => { // Control (Not readable)
+            panic!("Tried to read from PPU control register, which is not readable!");
+            // return Ok(0);
           },
-          0x1 => { // Mask
-            return Ok(self.mask_reg.flags);
-
+          0x1 => { // Mask (Not readable)
+            panic!("Tried to read from PPU mask register, which is not readable!");
+            // return Ok(0);
           },
           0x2 => { // Status
             // We use the 3 most significant bits of the status register
@@ -1983,10 +1984,12 @@ pub mod Ben2C02 {
             return Ok(0);
           },
           0x5 => { // Scroll
-            return Ok(0);
+            panic!("Tried to read from PPU scroll register, which is not readable!");
+            // return Ok(0);
           },
-          0x6 => { // PPP Address
-            return Ok(0);
+          0x6 => { // PPU Address
+            panic!("Tried to read from PPU address register, which is not readable!");
+            // return Ok(0);
           },
           0x7 => { // PPU data
             let read_result = self.read_from_ppu_bus(self.vram_reg.flags).unwrap();
@@ -2123,7 +2126,7 @@ pub mod Cartridge {
 
   use super::{Mapper::{Mapper, Mapper000}, Device::Device};
 
-  #[derive(Debug)]
+  #[derive(Debug, Clone, Copy)]
   pub enum MirroringMode {
     Vertical,
     Horizontal,
