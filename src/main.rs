@@ -167,12 +167,16 @@ impl Application for RustNESs {
           let input_byte = self.input_handler.get_input_byte();
           self.cpu.bus.controller.borrow_mut().emulator_input[0] = input_byte;
 
+          let start_render_time = Instant::now();
+
           self.clock_cycle();
           let mut frame_render_complete = self.cpu.bus.PPU.borrow().frame_render_complete;
           while (!frame_render_complete){
             self.clock_cycle();
             frame_render_complete = self.cpu.bus.PPU.borrow().frame_render_complete;
           }
+
+          println!("Frame render took {}ms", start_render_time.elapsed().as_millis());
           self.cpu.bus.PPU.borrow_mut().frame_render_complete = false;
           self.cpu.bus.PPU.borrow_mut().update_pattern_tables_vis_buffer(self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id);
 
