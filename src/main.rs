@@ -30,7 +30,7 @@ fn main() {
   RustNESs::run(Settings::default());
 }
 
-const EMULATOR_CYCLES_PER_SECOND: u64 = 5;
+const EMULATOR_FRAMES_PER_SECONDD: u64 = 20;
 const SCREEN_HEIGHT: u16 = 500;
 const PATTERN_TABLE_VIS_HEIGHT: u16 = 300;
 const PALETTE_VIS_HEIGHT: u16 = 30;
@@ -102,7 +102,7 @@ impl Application for RustNESs {
               cpu,
               current_cycle: 0,
               paused: true,
-              cycles_per_second: EMULATOR_CYCLES_PER_SECOND,
+              cycles_per_second: EMULATOR_FRAMES_PER_SECONDD,
               input_handler: NESInputHandler::new(),
               ppu_screen_buffer_visualizer: PPUScreenBufferVisualizer {
                 screen_vis_buffer: [[emulation::graphics::Color::new(0, 0, 0); 256]; 240],
