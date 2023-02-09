@@ -55,9 +55,9 @@ struct RustNESs {
 impl RustNESs {
 
   fn clock_cycle(&mut self) {
-    self.cpu.clock_cycle();
+    self.cpu.bus.PPU.borrow_mut().clock_cycle();
     if self.current_cycle % 3 == 0 {
-      self.cpu.bus.PPU.borrow_mut().clock_cycle();
+      self.cpu.clock_cycle();  
       if (self.cpu.bus.PPU.borrow().trigger_cpu_nmi) {
         // println!("PPU triggered CPU nmi!");
         self.cpu.bus.PPU.borrow_mut().trigger_cpu_nmi = false;
