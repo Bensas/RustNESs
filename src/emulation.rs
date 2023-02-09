@@ -944,7 +944,11 @@ pub mod Ben6502 {
             self.registers.sp -= 1;
           },
           Instruction::PHP => {
+            self.status.set_brk_command(1);
+            self.status.set_unused_bit(1);
             self.bus.write(STACK_START_ADDR + self.registers.sp as u16, self.status.flags).unwrap();
+            self.status.set_brk_command(0);
+            self.status.set_unused_bit(0);
             self.registers.sp -= 1;
           },
           Instruction::PLA => {
@@ -956,6 +960,7 @@ pub mod Ben6502 {
           Instruction::PLP => {
             self.registers.sp += 1;
             self.status.flags = self.bus.read(STACK_START_ADDR + self.registers.sp as u16, false).unwrap();
+            self.status.set_unused_bit(1);
           },
           Instruction::ROL => {
             let operand;
@@ -1192,6 +1197,7 @@ pub mod Ben6502 {
     pub fn clock_cycle(&mut self) {
       if self.current_instruction_remaining_cycles == 0 {
         let next_instruction_code = self.bus.read(self.registers.pc, false).unwrap();
+        self.status.set_unused_bit(1);
         self.registers.pc += 1;
         let next_instruction_data: &InstructionData = &INSTRUCTION_TABLE[next_instruction_code as usize];
         self.current_instruction_remaining_cycles = next_instruction_data.cycles;
@@ -1204,6 +1210,7 @@ pub mod Ben6502 {
         // if self.needs_additional_cycle {
         //   self.current_instruction_remaining_cycles += 1;
         // }
+        self.status.set_unused_bit(1);
       }
       self.current_instruction_remaining_cycles -= 1;
     }
