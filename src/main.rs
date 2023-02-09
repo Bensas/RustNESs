@@ -176,7 +176,7 @@ impl Application for RustNESs {
         EmulatorMessage::NextFrame => {
           let input_byte = self.input_handler.get_input_byte();
           println!("Input byte: 0b{:b}", input_byte);
-          self.cpu.bus.write(0x4016, input_byte).unwrap();
+          self.cpu.bus.controller.borrow_mut().emulator_input[0] = input_byte;
 
           self.clock_cycle();
           let mut frame_render_complete = self.cpu.bus.PPU.borrow().frame_render_complete;

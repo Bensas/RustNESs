@@ -20,6 +20,14 @@ pub mod Device {
 
 File: controller.rs
 
+Input is processed in the following way:
+- When the game needs controller input, it writes to one of the addresses (0x4016 ot 0x4017)
+- The controller then gathers all the pressed/unpressed buttons and stores them into a byte
+- The CPU can now read from the register 8 times to get the pressd/unpressed value of each button.
+
+- In this implementation, the emulator_input array is updated by the emulator UI program,
+and whenever the game writes to location 0x4016 or 0x4017, the data is moved to the data variable that
+will be used to return adecuate read values.
 
 */
 
@@ -27,13 +35,15 @@ pub mod Controller {
   use super::Device::Device;
 
   pub struct Controller {
-    data: [u8; 2]
+    data: [u8; 2],
+    pub emulator_input: [u8; 2]
   }
 
   impl Controller {
     pub fn new() -> Self {
       return Controller {
         data: [0; 2],
+        emulator_input: [0; 2],
       }
     }
   }
@@ -45,9 +55,9 @@ pub mod Controller {
 
     fn write(&mut self, addr: u16, data: u8) -> Result<(), String> {
       if let 0x4016 = addr {
-        self.data[0] = data;
+        self.data[0] = self.emulator_input[0];
       } else {
-        self.data[1] = data;
+        self.data[1] = self.emulator_input[1];
       }
       return Ok(());
     }
