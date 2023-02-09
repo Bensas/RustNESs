@@ -18,6 +18,61 @@ pub mod Device {
 /*
 
 
+File: controller.rs
+
+
+*/
+
+pub mod Controller {
+  use super::Device::Device;
+
+  pub struct Controller {
+    data: [u8; 2]
+  }
+
+  impl Controller {
+    pub fn new() -> Self {
+      return Controller {
+        data: [0; 2],
+      }
+    }
+  }
+
+  impl Device for Controller {
+    fn in_memory_bounds(&self, addr: u16)-> bool {
+      return addr == 0x4016 || addr == 0x4017;
+    }
+
+    fn write(&mut self, addr: u16, data: u8) -> Result<(), String> {
+      if let 0x4016 = addr {
+        self.data[0] = data;
+      } else {
+        self.data[1] = data;
+      }
+      return Ok(());
+    }
+
+    fn read(&mut self, addr: u16) -> Result<u8, String> {
+      if let 0x4016 = addr {
+        let return_value = (self.data[0] & 0x80 > 0) as u8;
+        print!("Read {} from controller 1. Data is {}", return_value, self.data[0]);
+        self.data[0] <<= 1;
+        return Ok(return_value);
+      } else {
+        let return_value = (self.data[1] & 0x80 > 0) as u8;
+        print!("Read {} from controller 2. Data is {}", return_value, self.data[0]);
+        self.data[1] <<= 1;
+        return Ok(return_value);
+      }
+    }
+  }
+
+}
+
+
+/*
+
+
 File: ram.rs
 
 
@@ -1977,7 +2032,7 @@ pub mod Ben2C02 {
           return Ok(retrieved_data);
         },
         Err(message) => {
-          println!("Tried to read from cartridge, but failed with error: {}. Reading from PPU internal memory instead :)" , message);
+          // println!("Tried to read from cartridge, but failed with error: {}. Reading from PPU internal memory instead :)" , message);
           return Ok(self.read_from_ppu_memory(addr).unwrap());
         }
       }
@@ -1990,7 +2045,7 @@ pub mod Ben2C02 {
           return Ok(());
         },
         Err(message) => {
-          println!("Tried to write to cartridge, but failed with error: {}. Writing to PPU internal memory instead :)" , message);
+          // println!("Tried to write to cartridge, but failed with error: {}. Writing to PPU internal memory instead :)" , message);
           return Ok(self.write_to_ppu_memory(addr, data).unwrap());
         }
       }
@@ -2470,11 +2525,12 @@ File: bus.rs
 pub mod Bus16Bit {
   use std::{sync::{Arc, Mutex}, cell::RefCell, rc::Rc};
 
-  use super::{Device::Device, Ben2C02::Ben2C02, hex_utils, Cartridge::create_cartridge_from_ines_file, Ram::Ram2K};
+  use super::{Device::Device, Ben2C02::Ben2C02, hex_utils, Cartridge::create_cartridge_from_ines_file, Ram::Ram2K, Controller::Controller};
 
   pub struct Bus16Bit {
     pub devices: Vec<Rc<RefCell<dyn Device>>>,
-    pub PPU: Rc<RefCell<Ben2C02>>
+    pub PPU: Rc<RefCell<Ben2C02>>,
+    pub controller: Rc<RefCell<Controller>>
   }
   
   // Assumed to be a 16-bit bus
@@ -2485,15 +2541,18 @@ pub mod Bus16Bit {
       let apu_mock = Rc::new(RefCell::new(Ram2K::new((0x4000, 0x4017))));
       let cartridge = Rc::new(RefCell::new(create_cartridge_from_ines_file(rom_file_path).unwrap()));
       let PPU = Rc::new(RefCell::new(Ben2C02::new(cartridge.clone())));
+      let controller = Rc::new(RefCell::new(Controller::new()));
   
       let mut devices: Vec<Rc<RefCell<dyn Device>>> = vec![];
       devices.push(ram);
       devices.push(apu_mock);
       devices.push(PPU.clone());
+      devices.push(controller.clone());
       devices.push(cartridge);
       return Bus16Bit {
         devices,
-        PPU
+        PPU,
+        controller
       }
     }
   
