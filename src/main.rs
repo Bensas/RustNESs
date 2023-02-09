@@ -165,7 +165,6 @@ impl Application for RustNESs {
         },
         EmulatorMessage::NextFrame => {
           let input_byte = self.input_handler.get_input_byte();
-          println!("Input byte: 0b{:b}", input_byte);
           self.cpu.bus.controller.borrow_mut().emulator_input[0] = input_byte;
 
           self.clock_cycle();
@@ -618,10 +617,10 @@ impl NESInputHandler {
     if self.b_pressed {
       result |= 0b01000000;
     }
-    if self.start_pressed {
+    if self.select_pressed {
       result |= 0b00100000;
     }
-    if self.select_pressed {
+    if self.start_pressed {
       result |= 0b00010000;
     }
     if self.up_pressed {
