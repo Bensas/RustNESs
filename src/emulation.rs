@@ -502,7 +502,9 @@ pub mod Ben6502 {
   
   
     pub current_instruction_remaining_cycles: u8,
-    needs_additional_cycle: bool,
+    addr_mode_requires_additional_cycle: bool,
+    instruction_requires_additional_cycle: bool,
+
     // fetched_data: u8,
     absolute_mem_address: u16,
   
@@ -523,7 +525,8 @@ pub mod Ben6502 {
         status: Status::new(),
         registers: Registers { a: 0, x: 0, y: 0, sp: 0, pc: 0 },
         current_instruction_remaining_cycles: 0,
-        needs_additional_cycle: false,
+        addr_mode_requires_additional_cycle: false,
+        instruction_requires_additional_cycle: false,
         absolute_mem_address: 0,
         relative_mem_address: 0
       };
@@ -566,8 +569,8 @@ pub mod Ben6502 {
   
           self.absolute_mem_address = mem_addr.wrapping_add(self.registers.x as u16);
   
-          if (self.absolute_mem_address > (mem_addr & 0xFF00)) { // We crossed a page boundary after adding X to the address
-            self.current_instruction_remaining_cycles += 1;
+          if ((self.absolute_mem_address & 0xFF) != (mem_addr & 0xFF00)) { // We crossed a page boundary after adding X to the address
+            self.addr_mode_requires_additional_cycle = true;
           }
         },
         AddressingMode::ABY => {
@@ -575,8 +578,8 @@ pub mod Ben6502 {
           self.registers.pc += 2;
           self.absolute_mem_address = mem_addr.wrapping_add(self.registers.y as u16);
   
-          if (self.absolute_mem_address > (mem_addr & 0xFF00)) { // We crossed a page boundary after adding X to the address
-            self.current_instruction_remaining_cycles += 1;
+          if ((self.absolute_mem_address & 0xFF) != (mem_addr & 0xFF00)) { // We crossed a page boundary after adding X to the address
+            self.addr_mode_requires_additional_cycle = true;
           }
         },
         AddressingMode::IMP => {
@@ -606,6 +609,10 @@ pub mod Ben6502 {
           let address_at_operand_location = ((base_pointer_high as u16) << 8) + base_pointer_low as u16;
 
           self.absolute_mem_address = (self.registers.y as u16).wrapping_add(address_at_operand_location as u16);
+
+          if ((self.absolute_mem_address & 0xFF00) != ((base_pointer_high as u16) << 8)) {
+            self.addr_mode_requires_additional_cycle = true;
+          }
         },
         AddressingMode::IND => {
           let abs_address_of_low_byte = self.bus.read_word_little_endian(self.registers.pc, false).unwrap();
@@ -640,13 +647,16 @@ pub mod Ben6502 {
             // A beautiful explanation for the following line can be found at https://youtu.be/8XmxKPJDGU0?t=2540
             self.status.set_overflow((((!(self.registers.a as u16 ^ operand as u16) & (self.registers.a as u16 ^ result as u16)) & 0b10000000) != 0) as u8); 
             self.registers.a = (result & 0x00FF) as u8;
-            // todo!("Might require an additional clock cycle :S");
+
+            self.instruction_requires_additional_cycle = true;
           },
           Instruction::AND => {
             let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
             self.registers.a = self.registers.a & operand;
             self.status.set_zero((self.registers.a == 0) as u8);
             self.status.set_negative(((self.registers.a & 0b10000000) != 0) as u8);
+
+            self.instruction_requires_additional_cycle = true;
           },
           Instruction::ASL => {
             let operand;
@@ -798,6 +808,8 @@ pub mod Ben6502 {
             self.status.set_carry((self.registers.a >= operand) as u8);
             self.status.set_zero(( (result & 0x00FF) == 0x0000 ) as u8);
             self.status.set_negative((result & 0b10000000 != 0) as u8);
+
+            self.instruction_requires_additional_cycle = true;
           },
           Instruction::CPX => {
             let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
@@ -838,6 +850,8 @@ pub mod Ben6502 {
             self.registers.a ^= operand;
             self.status.set_zero(( (self.registers.a & 0x00FF) == 0x0000 ) as u8);
             self.status.set_negative((self.registers.a & 0b10000000 != 0) as u8);
+
+            self.instruction_requires_additional_cycle = true;
           },
           Instruction::INC => {
             let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
@@ -883,6 +897,8 @@ pub mod Ben6502 {
   
             self.status.set_zero(( (self.registers.a & 0x00FF) == 0x0000 ) as u8);
             self.status.set_negative((self.registers.a & 0b10000000 != 0) as u8);
+
+            self.instruction_requires_additional_cycle = true;
           },
           Instruction::LDX => {
             let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
@@ -890,6 +906,8 @@ pub mod Ben6502 {
   
             self.status.set_zero(( (self.registers.x & 0x00FF) == 0x0000 ) as u8);
             self.status.set_negative((self.registers.x & 0b10000000 != 0) as u8);
+
+            self.instruction_requires_additional_cycle = true;
           },
           Instruction::LDY => {
             let operand = self.bus.read(self.absolute_mem_address, false).unwrap();
@@ -897,6 +915,8 @@ pub mod Ben6502 {
   
             self.status.set_zero(( (self.registers.y & 0x00FF) == 0x0000 ) as u8);
             self.status.set_negative((self.registers.y & 0b10000000 != 0) as u8);
+
+            self.instruction_requires_additional_cycle = true;
           },
           Instruction::LSR => {
             let operand;
@@ -938,6 +958,8 @@ pub mod Ben6502 {
             self.registers.a |= operand;
             self.status.set_zero(( (self.registers.a & 0x00FF) == 0x0000 ) as u8);
             self.status.set_negative((self.registers.a & 0b10000000 != 0) as u8);
+
+            self.instruction_requires_additional_cycle = true;
           },
           Instruction::PHA => {
             self.bus.write(STACK_START_ADDR + self.registers.sp as u16, self.registers.a).unwrap();
@@ -1035,7 +1057,8 @@ pub mod Ben6502 {
             self.status.set_overflow(( ((self.registers.a as u16 ^ result as u16) & (inverted_value as u16 ^ result as u16) & 0b10000000) != 0) as u8); 
             
             self.registers.a = (result & 0x00FF) as u8;
-            // todo!("Might require an additional clock cycle :S");
+
+            self.instruction_requires_additional_cycle = true;
           },
           Instruction::SEC => {
             self.status.set_carry(1);
@@ -1089,6 +1112,7 @@ pub mod Ben6502 {
             match opcode {
               0x0C | 0x1C | 0x3C | 0x5C | 0x7C | 0xDC | 0xFC => {
                 self.registers.pc += 2;
+                self.instruction_requires_additional_cycle = true;
               },
               0x04 | 0x44 | 0x64 | 0x14 | 0x34 | 0x54 | 0x74 | 0xD4 | 0xF4 | 0x80 => {
                 self.registers.pc += 1;
@@ -1201,15 +1225,16 @@ pub mod Ben6502 {
         self.registers.pc += 1;
         let next_instruction_data: &InstructionData = &INSTRUCTION_TABLE[next_instruction_code as usize];
         self.current_instruction_remaining_cycles = next_instruction_data.cycles;
-        // self.needs_additional_cycle = false;
+        
+        self.addr_mode_requires_additional_cycle = false;
+        self.instruction_requires_additional_cycle = false;
+
         self.set_addressing_mode(&next_instruction_data.addressing_mode);
         self.execute_instruction(&next_instruction_data.instruction, &next_instruction_data.addressing_mode, next_instruction_code);
-        // println!("Executed instruction {:?}", &next_instruction_data.instruction);
-        // todo!("We should check if both the set_addressing_mode as well as the execute_instruction functions required more cycles, rather than\
-        //       directly increasing the cycle counter inside of those functions. I'm not quite sure how the whole thing works, so I should read up :)");
-        // if self.needs_additional_cycle {
-        //   self.current_instruction_remaining_cycles += 1;
-        // }
+
+        if self.addr_mode_requires_additional_cycle && self.instruction_requires_additional_cycle {
+          self.current_instruction_remaining_cycles += 1;
+        }
         self.status.set_unused_bit(1);
       }
       self.current_instruction_remaining_cycles -= 1;
