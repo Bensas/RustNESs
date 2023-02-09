@@ -312,3 +312,7 @@ Once we have this program, we can test using the following:
 
 - GUI:
 	- For testing, we can visualize the pattern table information (palette id for each tile in the nametable)
+
+# Phase 7: Controller Inputs and PPU Land 3: Foreground rendering
+
+- Controller input is handled using the memory addresses 0x4016 and 0x4017
