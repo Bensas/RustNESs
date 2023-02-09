@@ -101,7 +101,7 @@ impl Application for RustNESs {
     return (Self { 
               cpu,
               current_cycle: 0,
-              paused: false,
+              paused: true,
               cycles_per_second: EMULATOR_CYCLES_PER_SECOND,
               input_handler: NESInputHandler::new(),
               ppu_screen_buffer_visualizer: PPUScreenBufferVisualizer {
@@ -153,15 +153,6 @@ impl Application for RustNESs {
           while (self.cpu.current_instruction_remaining_cycles > 0){
             self.clock_cycle();
           }
-
-          // println!("0x{:X}", self.cpu.registers.pc);
-          
-          // // TODO: verify that this is how the cycles should be executed
-          // self.clock_cycle();
-          // while (self.cpu.current_instruction_remaining_cycles == 0) {
-          //   self.clock_cycle();
-          // }
-          
         },
 
         EmulatorMessage::Run50CPUInstructions => {
@@ -170,7 +161,6 @@ impl Application for RustNESs {
             while (self.cpu.current_instruction_remaining_cycles > 0){
               self.clock_cycle();
             }
-            // println!("0x{:X}", self.cpu.registers.pc);
           }
         },
         EmulatorMessage::NextFrame => {

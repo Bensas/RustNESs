@@ -54,26 +54,27 @@ pub mod Controller {
     }
 
     fn write(&mut self, addr: u16, data: u8) -> Result<(), String> {
-      if let 0x4016 = addr {
+      if addr == 0x4016 {
         self.data[0] = self.emulator_input[0];
-      } else {
+        return Ok(());
+      } else if addr == 0x4017 {
         self.data[1] = self.emulator_input[1];
+        return Ok(());
       }
-      return Ok(());
+      return Err(String::from("Read from controller but not from addresses 0x4016 or 0x4017"));
     }
 
     fn read(&mut self, addr: u16) -> Result<u8, String> {
-      if let 0x4016 = addr {
+      if addr == 0x4016 {
         let return_value = (self.data[0] & 0x80 > 0) as u8;
-        print!("Read {} from controller 1. Data is {}", return_value, self.data[0]);
         self.data[0] <<= 1;
         return Ok(return_value);
-      } else {
+      } else if addr == 0x4017 {
         let return_value = (self.data[1] & 0x80 > 0) as u8;
-        print!("Read {} from controller 2. Data is {}", return_value, self.data[0]);
         self.data[1] <<= 1;
         return Ok(return_value);
       }
+      return Err(String::from("Read from controller but not from addresses 0x4016 or 0x4017"));
     }
   }
 
@@ -2548,7 +2549,7 @@ pub mod Bus16Bit {
   
     pub fn new(rom_file_path: &str) -> Bus16Bit {
       let ram = Rc::new(RefCell::new(Ram2K::new((0x0000, 0x1FFF))));
-      let apu_mock = Rc::new(RefCell::new(Ram2K::new((0x4000, 0x4017))));
+      let apu_mock = Rc::new(RefCell::new(Ram2K::new((0x4000, 0x4015))));
       let cartridge = Rc::new(RefCell::new(create_cartridge_from_ines_file(rom_file_path).unwrap()));
       let PPU = Rc::new(RefCell::new(Ben2C02::new(cartridge.clone())));
       let controller = Rc::new(RefCell::new(Controller::new()));
@@ -2572,8 +2573,7 @@ pub mod Bus16Bit {
           return device.borrow_mut().read(addr);
         }
       }
-      return Ok(0);
-      // return Err(String::from(format!("Error reading from memory bus (No device found in given address: 0x{:x}).", addr)));
+      return Err(String::from(format!("Error reading from memory bus (No device found in given address: 0x{:x}).", addr)));
     }
   
     pub fn read_word_little_endian(&mut self, addr: u16, readOnly: bool) -> Result<u16, String> {
@@ -2594,8 +2594,7 @@ pub mod Bus16Bit {
           return device.borrow_mut().write(addr, content);
         }
       }
-      return Ok(());
-      // return Err(format!("Error writing to memory bus (No device found in given address: 0x{:X}", addr));
+      return Err(format!("Error writing to memory bus (No device found in given address: 0x{:X}", addr));
     }
   
     pub fn get_memory_content_as_string(&mut self, start_addr: u16, end_addr: u16) -> String {
