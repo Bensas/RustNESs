@@ -313,6 +313,20 @@ Once we have this program, we can test using the following:
 - GUI:
 	- For testing, we can visualize the pattern table information (palette id for each tile in the nametable)
 
-# Phase 7: Controller Inputs and PPU Land 3: Foreground rendering
+# Phase 7: Controller Inputs [COMPLETE]
 
 - Controller input is handled using the memory addresses 0x4016 and 0x4017
+- When the CPU writes to address 0x4016 or 0x4017, the internal register of the controller is updated with the current pressed/unpressed value of the 8 buttons.
+- After that, the CPU can read 8 consecutive times to address 0x4016 or 0x4017 to receive, one by one, the pressed/unpressed value of each button.
+
+# Phase 8: Performance improvements -> Turned into cycle accuracy
+
+- We've measured frame render time at ~100ms, which is not good enough. Additionally, DK takes ages to get from the menu screen to the in-game screen, and SMB doesn't even ever get to the in-game screen.
+- I tried removing clock-cycle accuracy, but performance decreased.
+- Opcode fetching is donde by indexing an array, so that should not be a performance bottleneck.
+### Hypotheses
+- Cycle accuracy is still quite imperfect. That might not just be causing performance issues, but it might be preventing games from working properly, which might explain DK's sluggish load time and SMB's infinite one. If we improve cycle accuracy, we might kill two birds with one stone.
+
+
+### Realization and conclusion:
+- I was compiling for development. Running `cargo run --release` improves frame loading time by ~10 times, which is good enough. I'll still improve cycle accuracy"
