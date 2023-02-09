@@ -43,10 +43,11 @@ struct RustNESs {
   paused: bool,
   cycles_per_second: u64,
 
+  input_handler: NESInputHandler,
+
   ppu_screen_buffer_visualizer: PPUScreenBufferVisualizer,
   ppu_pattern_tables_buffer_visualizer: PPUPatternTableBufferVisualizer,
   ppu_palette_visualizer: PPUPaletteVisualizer,
-
 
   mem_visualizer: MemoryVisualizer
 }
@@ -88,7 +89,7 @@ impl Application for RustNESs {
   type Flags = ();
 
   fn new(flags: Self::Flags) -> (RustNESs, iced::Command<EmulatorMessage>) {
-    let rom_file_path = "src/test_roms/smb.nes";
+    let rom_file_path = "src/test_roms/nestest.nes";
 
 
     let mut cpu_bus = Bus16Bit::new(rom_file_path);
@@ -100,8 +101,9 @@ impl Application for RustNESs {
     return (Self { 
               cpu,
               current_cycle: 0,
-              paused: false,
+              paused: true,
               cycles_per_second: EMULATOR_CYCLES_PER_SECOND,
+              input_handler: NESInputHandler::new(),
               ppu_screen_buffer_visualizer: PPUScreenBufferVisualizer {
                 screen_vis_buffer: [[emulation::graphics::Color::new(0, 0, 0); 256]; 240],
                 canvas_cache: Cache::default(),
@@ -151,15 +153,6 @@ impl Application for RustNESs {
           while (self.cpu.current_instruction_remaining_cycles > 0){
             self.clock_cycle();
           }
-
-          // println!("0x{:X}", self.cpu.registers.pc);
-          
-          // // TODO: verify that this is how the cycles should be executed
-          // self.clock_cycle();
-          // while (self.cpu.current_instruction_remaining_cycles == 0) {
-          //   self.clock_cycle();
-          // }
-          
         },
 
         EmulatorMessage::Run50CPUInstructions => {
@@ -168,12 +161,14 @@ impl Application for RustNESs {
             while (self.cpu.current_instruction_remaining_cycles > 0){
               self.clock_cycle();
             }
-            // println!("0x{:X}", self.cpu.registers.pc);
           }
         },
         EmulatorMessage::NextFrame => {
-          self.clock_cycle();
+          let input_byte = self.input_handler.get_input_byte();
+          println!("Input byte: 0b{:b}", input_byte);
+          self.cpu.bus.controller.borrow_mut().emulator_input[0] = input_byte;
 
+          self.clock_cycle();
           let mut frame_render_complete = self.cpu.bus.PPU.borrow().frame_render_complete;
           while (!frame_render_complete){
             self.clock_cycle();
@@ -189,8 +184,6 @@ impl Application for RustNESs {
             self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id = 0;
           }
         },
-
-
 
         EmulatorMessage::EventOccurred(event) => {
           match event {
@@ -214,9 +207,8 @@ impl Application for RustNESs {
               println!("Enter(play/pause emulation) pressed!");
               self.update(EmulatorMessage::TogglePauseEmulation);
             },
-
             _ => {
-
+              self.input_handler.handle_keyboard_input(event);
             }
           }
       }
@@ -534,5 +526,116 @@ impl canvas::Program<EmulatorMessage> for PPUPatternTableBufferVisualizer {
       }
     });
     vec![pixel_grid]
+  }
+}
+
+struct NESInputHandler {
+  a_pressed: bool,
+  b_pressed: bool,
+  start_pressed: bool,
+  select_pressed: bool,
+  up_pressed: bool,
+  down_pressed: bool,
+  left_pressed: bool,
+  right_pressed: bool,
+}
+
+impl NESInputHandler {
+  fn new() -> Self {
+    return NESInputHandler {
+      a_pressed: false,
+      b_pressed: false,
+      start_pressed: false,
+      select_pressed: false,
+      up_pressed: false,
+      down_pressed: false,
+      left_pressed: false,
+      right_pressed: false
+    }
+  }
+
+  fn handle_keyboard_input(&mut self, event: Event) {
+    match event {
+      Event::Keyboard(keyboard::Event::KeyPressed { key_code: KeyCode::W, modifiers }) => {
+        self.up_pressed = true;
+      },
+      Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::W, modifiers }) => {
+        self.up_pressed = false;
+      },
+      Event::Keyboard(keyboard::Event::KeyPressed { key_code: KeyCode::A, modifiers }) => {
+        self.left_pressed = true;
+      },
+      Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::A, modifiers }) => {
+        self.left_pressed = false;
+      },
+      Event::Keyboard(keyboard::Event::KeyPressed { key_code: KeyCode::S, modifiers }) => {
+        self.down_pressed = true;
+      },
+      Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::S, modifiers }) => {
+        self.down_pressed = false;
+      },
+      Event::Keyboard(keyboard::Event::KeyPressed { key_code: KeyCode::D, modifiers }) => {
+        self.right_pressed = true;
+      },
+      Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::D, modifiers }) => {
+        self.right_pressed = false;
+      },
+      Event::Keyboard(keyboard::Event::KeyPressed { key_code: KeyCode::M, modifiers }) => {
+        self.b_pressed = true;
+      },
+      Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::M, modifiers }) => {
+        self.b_pressed = false;
+      },
+      Event::Keyboard(keyboard::Event::KeyPressed { key_code: KeyCode::N, modifiers }) => {
+        self.a_pressed = true;
+      },
+      Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::N, modifiers }) => {
+        self.a_pressed = false;
+      },
+      Event::Keyboard(keyboard::Event::KeyPressed { key_code: KeyCode::J, modifiers }) => {
+        self.start_pressed = true;
+      },
+      Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::J, modifiers }) => {
+        self.start_pressed = false;
+      },
+      Event::Keyboard(keyboard::Event::KeyPressed { key_code: KeyCode::H, modifiers }) => {
+        self.select_pressed = true;
+      },
+      Event::Keyboard(keyboard::Event::KeyReleased { key_code: KeyCode::H, modifiers }) => {
+        self.select_pressed = false;
+      },
+      _ => {
+
+      }
+    }
+  }
+
+  fn get_input_byte(&self) -> u8 {
+    let mut result = 0x0;
+    if self.a_pressed {
+      result |= 0b10000000;
+    }
+    if self.b_pressed {
+      result |= 0b01000000;
+    }
+    if self.start_pressed {
+      result |= 0b00100000;
+    }
+    if self.select_pressed {
+      result |= 0b00010000;
+    }
+    if self.up_pressed {
+      result |= 0b00001000;
+    }
+    if self.down_pressed {
+      result |= 0b00000100;
+    }
+    if self.left_pressed {
+      result |= 0b00000010;
+    }
+    if self.right_pressed {
+      result |= 0b00000001;
+    }
+    return result;
   }
 }
