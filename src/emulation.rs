@@ -591,8 +591,11 @@ pub mod Ben6502 {
           self.registers.pc += 1;
   
           let pointer_to_addr = (instruction_addr as u16 + self.registers.x as u16) & 0x00FF;
+
+          let abs_address_low = self.bus.read(pointer_to_addr as u16, false).unwrap();
+          let abs_address_high = self.bus.read((pointer_to_addr as u8).wrapping_add(1) as u16, false).unwrap();
   
-          self.absolute_mem_address = self.bus.read_word_little_endian(pointer_to_addr, false).unwrap(); // Should we wrap around 0xFFFF here?
+          self.absolute_mem_address = ((abs_address_high as u16) << 8) + (abs_address_low as u16);
         }
         AddressingMode::INY => {
           let base_pointer_loc = self.bus.read(self.registers.pc, false).unwrap();
