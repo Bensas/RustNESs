@@ -2714,7 +2714,12 @@ pub mod Bus16Bit {
       return Bus16Bit {
         devices,
         PPU,
-        controller
+        controller,
+        dma_transfer: false,
+        dma_transfer_start_counter: 2,
+        dma_page: 0x0,
+        dma_curr_data: 0x0,
+        dma_curr_addr: 0x0,
       }
     }
   
