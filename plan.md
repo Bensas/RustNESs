@@ -353,29 +353,29 @@ PPU work:
 
 ## Work
 - PPU:
-	- OAM array of sprite_object structs:
+	- [PENDING] OAM array of sprite_object structs:
 		- sprite_object struct:
 			y: u8,
 			id: u8,
 			attributes: u8, // Should it be a struct?
 			x: u8
-	- `oam_addr: u8` variable for traditional OAM access
-	- `sprites_on_curr_scanline: Vec<sprite_object>` 
-	- `sprites_on_curr_scanline_pattern_lo: Vec<u8>`
-	- `sprites_on_curr_scanline_pattern_hi: Vec<u8>`
-	- read() and write() functions:
-		- OAM Address register:
+	- [PENDING] `oam_addr: u8` variable for traditional OAM access
+	- [PENDING] `sprites_on_curr_scanline: Vec<sprite_object>` 
+	- [PENDING] `sprites_on_curr_scanline_pattern_lo: Vec<u8>`
+	- `[PENDING] sprites_on_curr_scanline_pattern_hi: Vec<u8>`
+	- [PENDING] read() and write() functions:
+		- [PENDING] OAM Address register:
 			- read/write to `oam_addr` variable
-		- OAM Data register:
+		- [PENDING] OAM Data register:
 			- read/write from/to OAM array (indexed with `self.oam_addrs`)
-	- clock_cycle() function:
-		- `if (self.cycle == 257 && self.scan_line >= 0)` // End of the visible scanline
+	- [PENDING] clock_cycle() function:
+		- [PENDING] `if (self.cycle == 257 && self.scan_line >= 0)` // End of the visible scanline
 			- empty `sprites_on_current_scanline`
 			- Loop through all values in the OAM and for each, do `let diff = scanline - object.y`
 				`if diff >= 0 && diff < (self.control_reg.sprite_size ? 16 : 8)`
 				`sprites_on_current_scanline.push(object)` (Only if we haven't already found 9 sprites)
 			- Check if we have more than 8 sprites(9), then set `self.status_reg.sprite_overflow = 1`
-		- `if (self.cycle == 340)`
+		- [PENDING] `if (self.cycle == 340)`
 			- fetch `sprite_on_curr_scanline_pattern_hi` and `-lo`from memory location
 				- mem location is determined by `control.pattern_sprite`, `control.sprite_size`, `object.orientation` and `object.tile_id`:
 					- `diff = self.scan_ line - object.y`
@@ -406,18 +406,15 @@ PPU work:
 								- (START_ADDR + (tile_id & 0b11111110) * 16 + (7 - (diff % 8)) + 8)
 			- Chcek if they should be flipped horizontally (second msb of attribute byte set to 1) and flip them if necessary.
 			- Add to `sprites_on_curr_scanline_pattern_hi` and `-lo` vectors
-		- `if (self.scan_line == -1 && self.scycle == 1)` (aside from existing reset of vertical_blank)
+		- [PENDING] `if (self.scan_line == -1 && self.scycle == 1)` (aside from existing reset of vertical_blank)
 			- `self.status_reg.est_sprite_overflow(0)`
 			- clear `self.sprites_on_curr_scanline_pattern_lo` and `-hi`
-	- Modify update_shift_registers():
+	- [PENDING] Modify update_shift_registers():
 		- Add `if (self.mask_reg.get_render_sprites() && self.cycles >= 1 && self.cycle < 258)`
 			- for each `sprite_obj` in `self.sprites_on_curr_scanline`:
 				- `if sprite_obj.x > 0 {  sprite_obj.x -= 1 }`
 				- `else`, shift corresponding register in `sprites_on_curr_scanline_pattern_lo` and `-hi`
 				- Maybe we could just check `self.scan_line` vs `sprite_obj.x` instead of decreasing. I don't like the concept of modifying `x`, even if it's a copy of the original sprte.
-						
-
-
 
 - Bus (we might have to implement this on the CPU instead):
 	- Add variables:

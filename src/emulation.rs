@@ -2621,8 +2621,17 @@ pub mod Bus16Bit {
   pub struct Bus16Bit {
     pub devices: Vec<Rc<RefCell<dyn Device>>>,
     pub PPU: Rc<RefCell<Ben2C02>>,
-    pub controller: Rc<RefCell<Controller>>
+    pub controller: Rc<RefCell<Controller>>,
+
+    // Direct Memory Access variables
+    pub dma_transfer: bool,
+    pub dma_transfer_start_counter: u8,
+    pub dma_page: u8,
+    pub dma_curr_data: u8,
+    pub dma_curr_addr: u16,
   }
+
+  const DMA_ADDR: u16 = 0x14;
   
   // Assumed to be a 16-bit bus
   impl Bus16Bit {
@@ -2669,6 +2678,13 @@ pub mod Bus16Bit {
     }
   
     pub fn write(&mut self, addr: u16, content: u8) -> Result<(), String>{
+      if (addr == DMA_ADDR) {
+        self.dma_page = content;
+        self.dma_curr_addr = (self.dma_page as u16) << 8;
+        self.dma_transfer = true;
+        self.dma_transfer_start_counter = 2;
+        self.dma_curr_data = 0;
+      }
       for device in self.devices.iter_mut() {
         if device.borrow().in_memory_bounds(addr) {
           return device.borrow_mut().write(addr, content);

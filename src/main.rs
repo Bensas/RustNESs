@@ -57,7 +57,27 @@ impl RustNESs {
   fn clock_cycle(&mut self) {
     self.cpu.bus.PPU.borrow_mut().clock_cycle();
     if self.current_cycle % 3 == 0 {
-      self.cpu.clock_cycle();  
+      if (self.cpu.bus.dma_transfer) {
+        if (self.cpu.bus.dma_transfer_start_counter > 0) {
+          self.cpu.bus.dma_transfer_start_counter -= 1;
+        } else {
+          // We're running this whenever curent_cycle % 3 == 0, but this could happen 
+          // when current_cycle % 2 = 0 or curr_cycle % 2 == 1
+          // In the latter case, our code would not work as intended.
+          // How do we deal with that?
+          if (self.current_cycle % 2 == 0) {
+            self.cpu.bus.dma_curr_data = self.cpu.bus.read(self.cpu.bus.dma_curr_addr, false).unwrap();
+          } else {
+            self.cpu.bus.write(self.cpu.bus.dma_curr_addr, self.cpu.bus.dma_curr_data);
+            self.cpu.bus.dma_curr_addr += 1;
+            if (self.cpu.bus.dma_curr_addr >> 8 != (self.cpu.bus.dma_page as u16)) {
+              self.cpu.bus.dma_transfer = false;
+            }
+          }
+        }
+      } else {
+        self.cpu.clock_cycle();
+      }
     }
     if (self.cpu.bus.PPU.borrow().trigger_cpu_nmi) {
       self.cpu.bus.PPU.borrow_mut().trigger_cpu_nmi = false;
@@ -88,7 +108,7 @@ impl Application for RustNESs {
   type Flags = ();
 
   fn new(flags: Self::Flags) -> (RustNESs, iced::Command<EmulatorMessage>) {
-    let rom_file_path = "src/test_roms/dk.nes";
+    let rom_file_path = "src/test_roms/smb.nes";
 
 
     let mut cpu_bus = Bus16Bit::new(rom_file_path);
