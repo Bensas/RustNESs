@@ -224,7 +224,7 @@ Once we have this program, we can test using the following:
 - Try loading `nestest.nes`, maybe other games, veryifying that we can see patterns and palettes.
 
 
-# Phase 6: PPU Land 2: Name tables
+# Phase 6: PPU Land 2: Name tables [COMPLETE]
 
 ## Some notes
 - NES loads two name_tables (2kb) so that we can scroll them across the screen using the scroll register on the PPU
@@ -246,7 +246,7 @@ Once we have this program, we can test using the following:
 - Cartridge work:
 	- When loading a ROM file, use the `mapper` header flags to determine the mirroring type (horizontal or vartical), so the PPU then knows which one to use.
 
-- [PENDING] PPU work:
+PPU work:
 	- Add two 16-bit loopy registers (`vram` and `tram`) for nametable addressing, each consisting of the flags:
 			- coarse_x: 5-bit
 			- coarse_y: 5-bit
@@ -319,7 +319,7 @@ Once we have this program, we can test using the following:
 - When the CPU writes to address 0x4016 or 0x4017, the internal register of the controller is updated with the current pressed/unpressed value of the 8 buttons.
 - After that, the CPU can read 8 consecutive times to address 0x4016 or 0x4017 to receive, one by one, the pressed/unpressed value of each button.
 
-# Phase 8: Performance improvements -> Turned into cycle accuracy
+# Phase 8: Performance improvements -> Turned into cycle accuracy [COMPLETE]
 
 - We've measured frame render time at ~100ms, which is not good enough. Additionally, DK takes ages to get from the menu screen to the in-game screen, and SMB doesn't even ever get to the in-game screen.
 - I tried removing clock-cycle accuracy, but performance decreased.
@@ -329,4 +329,112 @@ Once we have this program, we can test using the following:
 
 
 ### Realization and conclusion:
-- I was compiling for development. Running `cargo run --release` improves frame loading time by ~10 times, which is good enough. I'll still improve cycle accuracy"
+- I was compiling for development. Running `cargo run --release` improves frame loading time by ~10 times, which is good enough. I'll still improve cycle accuracy.
+
+# Phase 9: PPU Foreground rendering
+
+## Some notes
+- Sprites are stored in OAM (Object Attribute Memory) of the PPU (not on the PPU bus)
+	- 256 bytes in size, containing 64 sprites
+	- 4 bytes per sprite:
+		- X coord
+		- Y coord
+		- tile_id (from pattern memory)
+		- attributes (priority, palette and orientation) -> orientation allows us to flip sprites horizontally
+	- Sprites can be 8x8px or 8x16px
+	- OAM addr and OAM data registers in the PPU are meant to be used by the CPU to read/write from/to the OAM memory, but they are very slow, so instead, most games use DMA:
+		- WHen the CPU writes the adress of a page in the CPU bus to address 0x4014, DMA (Direct Memory Access) kicks in, disables the CPU for 512 clock cycles, and automatically copies the entire page to the PPU's OAM memory. This is way faster than the manual ethod.
+
+- Rendering sprites:
+	- At the end of the visible scanline, we search the OAM for up to 8 sprites that will be visible on the next scanline
+	- As the scanline advances, reduce the X coord for each sprite 
+	- If X coord reaches 0, we start to draw the sprite
+	- if there are multiple sprites, we must resolve priority(based on sprite priority, background priority and transparency) to determine which one we draw
+
+## Work
+- PPU:
+	- OAM array of sprite_object structs:
+		- sprite_object struct:
+			y: u8,
+			id: u8,
+			attributes: u8, // Should it be a struct?
+			x: u8
+	- `oam_addr: u8` variable for traditional OAM access
+	- `sprites_on_curr_scanline: Vec<sprite_object>` 
+	- `sprites_on_curr_scanline_pattern_lo: Vec<u8>`
+	- `sprites_on_curr_scanline_pattern_hi: Vec<u8>`
+	- read() and write() functions:
+		- OAM Address register:
+			- read/write to `oam_addr` variable
+		- OAM Data register:
+			- read/write from/to OAM array (indexed with `self.oam_addrs`)
+	- clock_cycle() function:
+		- `if (self.cycle == 257 && self.scan_line >= 0)` // End of the visible scanline
+			- empty `sprites_on_current_scanline`
+			- Loop through all values in the OAM and for each, do `let diff = scanline - object.y`
+				`if diff >= 0 && diff < (self.control_reg.sprite_size ? 16 : 8)`
+				`sprites_on_current_scanline.push(object)` (Only if we haven't already found 9 sprites)
+			- Check if we have more than 8 sprites(9), then set `self.status_reg.sprite_overflow = 1`
+		- `if (self.cycle == 340)`
+			- fetch `sprite_on_curr_scanline_pattern_hi` and `-lo`from memory location
+				- mem location is determined by `control.pattern_sprite`, `control.sprite_size`, `object.orientation` and `object.tile_id`:
+					- `diff = self.scan_ line - object.y`
+					- With 8x8:
+						- `START_ADDR = PATT_MEMORY_START + (control_reg.pattern_sprite) * 4096`
+						- non-flipped sprite
+							- (START_ADDR + tile_id * 16 + diff)
+							- (START_ADDR + tile_id * 16 + diff + 8)
+						- If flipped vertically (msb bit of attribute byte set to 1):
+							- (START_ADDR + tile_id * 16 + 7 - diff)
+							- (START_ADDR + tile_id * 16 + 7 - diff + 8)
+					- With 8x16:
+						- non-flipped:
+							- `START_ADDR = PATT_MEMORY_START + (object.tile_id & 0x01) * 4096`
+							- `if diff < 8` (we're drawing the top half of the sprite):
+								- (START_ADDR + (tile_id & 0b11111110) * 16 + (diff % 8))
+								- (START_ADDR + (tile_id & 0b11111110) * 16 + (diff % 8) + 8)
+							- `else` (we're drawing the bottom half of the sprite):	
+								- (START_ADDR + ((tile_id & 0b11111110) + 1) * 16 + (diff % 8))
+								- (START_ADDR + ((tile_id & 0b11111110) + 1) * 16 + (diff % 8) + 8)
+						- flipped vertically:
+							- `START_ADDR = PATT_MEMORY_START + (object.tile_id & 0x01) * 4096`
+							- `if diff < 8` (we're drawing the top half of the sprite, which is actually the bottom half):
+								- (START_ADDR + ((tile_id & 0b11111110) + 1) * 16 + (7 - (diff % 8)))
+								- (START_ADDR + ((tile_id & 0b11111110) + 1) * 16 + (7 - (diff % 8)) + 8)
+							- `else` (we're drawing the bottom half of the sprite, which is actually the top half):	
+								- (START_ADDR + (tile_id & 0b11111110) * 16 + (7 - (diff % 8)))
+								- (START_ADDR + (tile_id & 0b11111110) * 16 + (7 - (diff % 8)) + 8)
+			- Chcek if they should be flipped horizontally (second msb of attribute byte set to 1) and flip them if necessary.
+			- Add to `sprites_on_curr_scanline_pattern_hi` and `-lo` vectors
+		- `if (self.scan_line == -1 && self.scycle == 1)` (aside from existing reset of vertical_blank)
+			- `self.status_reg.est_sprite_overflow(0)`
+			- clear `self.sprites_on_curr_scanline_pattern_lo` and `-hi`
+	- Modify update_shift_registers():
+		- Add `if (self.mask_reg.get_render_sprites() && self.cycles >= 1 && self.cycle < 258)`
+			- for each `sprite_obj` in `self.sprites_on_curr_scanline`:
+				- `if sprite_obj.x > 0 {  sprite_obj.x -= 1 }`
+				- `else`, shift corresponding register in `sprites_on_curr_scanline_pattern_lo` and `-hi`
+				- Maybe we could just check `self.scan_line` vs `sprite_obj.x` instead of decreasing. I don't like the concept of modifying `x`, even if it's a copy of the original sprte.
+						
+
+
+
+- Bus (we might have to implement this on the CPU instead):
+	- Add variables:
+		- `dma_page: u8`
+		- `dma_addr: u8`
+		- `dma_data: u8`
+		- `dma_transfer: bool`
+	- When CPU writes `data` to 0x4014:
+		- `data_page = data`
+		- `dma_addr = 0x00`
+		- `dma_transfer = true`
+
+
+- RustNESs:
+	- clock_cycle() function:
+		- only do `self.cpu.clock_cycle()` if `dma_transfer` is set to false on the bus
+		- Otherwise:
+			- First wait for 2 clock cycles
+			- Then alternate between reading from the page in the cpu bus and writing (directly)to the PPU's OAM array, incrementing `oam_addr` on every write (and checking for max_val for u8, where we set `dma_transfer` to false) 
+
