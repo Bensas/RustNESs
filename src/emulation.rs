@@ -1657,6 +1657,14 @@ pub mod Ben2C02 {
     }
   }
 
+
+  struct SpriteObj {
+    y: u8,
+    tile_id: u8,
+    attributes: u8,
+    x: u8
+  }
+
   pub struct Ben2C02 {
     memory_bounds: (u16, u16),
 
@@ -1672,6 +1680,8 @@ pub mod Ben2C02 {
     pub status_reg: StatusRegister,
     writing_high_byte_of_addr: bool,
     ppu_data_read_buffer: u8,
+    oam_data_addr: u8,
+
     vram_reg: VramRegister,
     temp_vram_reg: VramRegister,
     fine_x: u8,
@@ -1688,12 +1698,19 @@ pub mod Ben2C02 {
 		bg_shifter_attrib_lo: u16,
 		bg_shifter_attrib_hi: u16,
 
+
+    // Sprite rendering variables
+    sprites_on_curr_scanline: Vec<SpriteObj>,
+    sprites_on_curr_scanline_pattern_lo: Vec<u8>,
+    sprites_on_curr_scanline_pattern_hi: Vec<u8>,
+
     pattern_tables: [[u8; 4096]; 2],
     pattern_tables_mem_bounds: (u16, u16),
     name_tables: [[u8; 1024]; 2],
     name_tables_mem_bounds: (u16, u16),
     pub palette: [u8; 32],
     palette_mem_bounds: (u16, u16),
+    oam_memory: [SpriteObj; 64],
 
     
     // These arrays are used for emulator visualization, thus the higher level Color structure
@@ -2141,6 +2158,42 @@ pub mod Ben2C02 {
         }
       }
     }
+
+    fn read_from_oam_memory(&self, addr: u8) -> u8 {
+      let index = (addr / 4) as usize;
+      match (addr % 4) {
+        0 => {
+          return self.oam_memory[index].y;
+        },
+        1 => {
+          return self.oam_memory[index].tile_id;
+        },
+        2 => {
+          return self.oam_memory[index].attributes;
+        },
+        3 => {
+          return self.oam_memory[index].x;
+        }
+      }
+    }
+
+    fn write_to_oam_memory(&mut self, addr: u8, data: u8) -> () {
+      let index = (addr / 4) as usize;
+      match (addr % 4) {
+        0 => {
+          self.oam_memory[index].y = data;
+        },
+        1 => {
+          self.oam_memory[index].tile_id = data;
+        },
+        2 => {
+          self.oam_memory[index].attributes = data;
+        },
+        3 => {
+          self.oam_memory[index].x = data;
+        }
+      }
+    }
   
   }
 
@@ -2166,10 +2219,10 @@ pub mod Ben2C02 {
 
           },
           0x3 => { // OAM Address
-
+            self.oam_data_addr = data;
           },
           0x4 => { // OAM Data
-
+            self.write_to_oam_memory(self.oam_data_addr, data);
           },
           0x5 => { // Scroll
             if self.writing_high_byte_of_addr {
@@ -2227,10 +2280,12 @@ pub mod Ben2C02 {
             return Ok(result);
           },
           0x3 => { // OAM Address
-            return Ok(0);
+            return Err(String::from("CPU tried to read from OAM address register, which is undefined."));
+            // return Ok(0);
           },
           0x4 => { // OAM Data
-            return Ok(0);
+            return Err(String::from("CPU tried to read from OAM data register, which is undefined."));
+            // return Ok(self.read_from_oam_memory(self.oam_data_addr));
           },
           0x5 => { // Scroll
             panic!("Tried to read from PPU scroll register, which is not readable!");

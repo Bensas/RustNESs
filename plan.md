@@ -353,20 +353,20 @@ PPU work:
 
 ## Work
 - PPU:
-	- [PENDING] OAM array of sprite_object structs:
+	- OAM array of sprite_object structs:
 		- sprite_object struct:
 			y: u8,
 			id: u8,
 			attributes: u8, // Should it be a struct?
 			x: u8
-	- [PENDING] `oam_addr: u8` variable for traditional OAM access
-	- [PENDING] `sprites_on_curr_scanline: Vec<sprite_object>` 
-	- [PENDING] `sprites_on_curr_scanline_pattern_lo: Vec<u8>`
-	- `[PENDING] sprites_on_curr_scanline_pattern_hi: Vec<u8>`
-	- [PENDING] read() and write() functions:
-		- [PENDING] OAM Address register:
+	- `oam_data_addr: u8` variable for traditional OAM access
+	- `sprites_on_curr_scanline: Vec<sprite_object>` 
+	- `sprites_on_curr_scanline_pattern_lo: Vec<u8>`
+	- `sprites_on_curr_scanline_pattern_hi: Vec<u8>`
+	- read() and write() functions:
+		- OAM Address register:
 			- read/write to `oam_addr` variable
-		- [PENDING] OAM Data register:
+		- OAM Data register:
 			- read/write from/to OAM array (indexed with `self.oam_addrs`)
 	- [PENDING] clock_cycle() function:
 		- [PENDING] `if (self.cycle == 257 && self.scan_line >= 0)` // End of the visible scanline
