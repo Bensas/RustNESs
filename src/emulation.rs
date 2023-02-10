@@ -1880,8 +1880,53 @@ pub mod Ben2C02 {
         bg_palette_id = bg_palette1 << 1 | bg_palette0;
       }
 
+      // let mut fg_pixel_value: u8 = 0x0;
+      // let mut fg_palette_id: u8 = 0x0;
+      // let mut fg_priority: bool = false;
+
+      // if (self.mask_reg.get_render_sprites() != 0) {
+      //   for i in 0..self.sprites_on_curr_scanline.len() {
+      //     let sprite_obj = self.sprites_on_curr_scanline.get(i).unwrap();
+      //     if sprite_obj.x == 0 { // We could also check for scanline vs x, right?
+      //       let fg_pixel_lo = (self.sprites_on_curr_scanline_pattern_lo[i] & 0b10000000 != 0) as u8;
+      //       let fg_pixel_hi = (self.sprites_on_curr_scanline_pattern_hi[i] & 0b10000000 != 0) as u8;
+      //       fg_pixel_value = (fg_pixel_hi << 1) | fg_pixel_lo;
+
+      //       fg_palette_id = (sprite_obj.attribute & 0b11) + 0x04;
+      //       fg_priority = (sprite_obj.attribute & 0b00100000) == 0;
+
+      //       if (fg_pixel_value != 0) {
+      //         break;
+      //       }
+
+      //     }
+      //   }
+      // }
+
+      // let result_pixel_value: u8 = 0x00;
+      // let result_palette_id: u8 = 0x00;
+
+      // if (bg_pixel_value == 0 && fg_pixel_value == 0) {
+      //   result_pixel_value = 0;
+      //   result_palette_id = 0;
+      // } else if (bg_pixel_value == 0 && fg_pixel_value != 0) {
+      //   result_pixel_value = fg_pixel_value;
+      //   result_palette_id = fg_palette_id;
+      // } else if (bg_pixel_value != 0 && fg_pixel_value == 0) {
+      //   result_pixel_value = bg_pixel_value;
+      //   result_palette_id = bg_palette_id;
+      // } else if (bg_pixel_value != 0 && fg_pixel_value != 0) {
+      //   if (fg_priority) {
+      //     result_pixel_value = fg_pixel_value;
+      //     result_palette_id = fg_palette_id;
+      //   } else {
+      //     result_pixel_value = bg_pixel_value;
+      //     result_palette_id = bg_palette_id;
+      //   }
+      // }
+
       if (self.cycle < 256 && self.scan_line < 240 && self.scan_line != -1) {
-        self.screen_vis_buffer[self.scan_line as usize][self.cycle as usize] = self.get_color_from_palette(bg_pixel_value, bg_palette_id);
+        self.screen_vis_buffer[self.scan_line as usize][self.cycle as usize] = self.get_color_from_palette(result_pixel_value, result_palette_id);
       }
 
     }
@@ -2668,4 +2713,4 @@ pub mod Bus16Bit {
     // }
   
   }
-}
+} 
