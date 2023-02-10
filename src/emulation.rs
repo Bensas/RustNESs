@@ -1657,7 +1657,7 @@ pub mod Ben2C02 {
     }
   }
 
-
+#[derive(Default, Clone, Copy)]
   struct SpriteObj {
     y: u8,
     tile_id: u8,
@@ -1736,6 +1736,8 @@ pub mod Ben2C02 {
         status_reg: StatusRegister::new(),
         writing_high_byte_of_addr: true,
         ppu_data_read_buffer: 0,
+        oam_data_addr: 0,
+
         vram_reg: VramRegister::new(),
         temp_vram_reg: VramRegister::new(),
         fine_x: 0,
@@ -1750,12 +1752,17 @@ pub mod Ben2C02 {
         bg_shifter_attrib_lo: 0,
         bg_shifter_attrib_hi: 0,
 
+        sprites_on_curr_scanline: vec![],
+        sprites_on_curr_scanline_pattern_lo: vec![],
+        sprites_on_curr_scanline_pattern_hi: vec![],
+
         pattern_tables: [[0; 4096]; 2],
         pattern_tables_mem_bounds: (0x0000, 0x1FFF),
         name_tables: [[0; 1024]; 2],
         name_tables_mem_bounds: (0x2000, 0x3EFF),
         palette: [0; 32],
         palette_mem_bounds: (0x3F00, 0x3FFF),
+        oam_memory: [SpriteObj::default(); 64],
 
 
         palette_vis_bufer: create_palette_vis_buffer(),
