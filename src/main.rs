@@ -30,7 +30,7 @@ fn main() {
   RustNESs::run(Settings::default());
 }
 
-const EMULATOR_FRAMES_PER_SECONDD: u64 = 10;
+const EMULATOR_FRAMES_PER_SECONDD: u64 = 60;
 const SCREEN_HEIGHT: u16 = 500;
 const PATTERN_TABLE_VIS_HEIGHT: u16 = 300;
 const PALETTE_VIS_HEIGHT: u16 = 30;
@@ -66,15 +66,11 @@ impl RustNESs {
           // In the latter case, our code would not work as intended.
           // How do we deal with that?
           if (self.current_cycle % 2 == 0) {
-            // println!("DMA reading from address 0x{:X}", self.cpu.bus.dma_curr_addr);
             self.cpu.bus.dma_curr_data = self.cpu.bus.read(self.cpu.bus.dma_curr_addr, false).unwrap();
           } else {
-            println!("DMA writing 0x{:X} to address 0x{:X}", self.cpu.bus.dma_curr_data, self.cpu.bus.dma_curr_addr);
-            // self.cpu.bus.write(self.cpu.bus.dma_curr_addr, self.cpu.bus.dma_curr_data).unwrap();
             self.cpu.bus.PPU.borrow_mut().write_to_oam_memory((self.cpu.bus.dma_curr_addr & 0xFF) as u8, self.cpu.bus.dma_curr_data);
             self.cpu.bus.dma_curr_addr += 1;
             if (self.cpu.bus.dma_curr_addr >> 8 != (self.cpu.bus.dma_page as u16)) {
-              // println!("Ending DMA  at address 0x{:X}", self.cpu.bus.dma_curr_addr);
               self.cpu.bus.dma_transfer = false;
             }
           }

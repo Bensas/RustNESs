@@ -1813,7 +1813,6 @@ pub mod Ben2C02 {
           self.status_reg.set_sprite_zero_hit(0);
           self.sprites_on_curr_scanline_pattern_lsb = vec![];
           self.sprites_on_curr_scanline_pattern_msb = vec![];
-          println!("Resetting vectors");
         }
 
         if ((self.cycle >= 2 && self.cycle < 258) || (self.cycle >= 321 && self.cycle < 338)) {
@@ -1912,7 +1911,6 @@ pub mod Ben2C02 {
               }
             }
           }
-          // println!("{:?}", self.sprites_on_curr_scanline);
         }
         
         if (self.cycle == 340) {
@@ -1936,11 +1934,11 @@ pub mod Ben2C02 {
                 if ( y_pos_diff < 8 ) { // We're rendering the top half of the rendered sprite (which is the bottom half of the original sprite)
                   sprite_color_value_lsb_addr = start_addr + (((sprite.tile_id & 0b11111110) + 1) as u16) * 16 + (7 - (y_pos_diff % 8)) as u16;
                 } else {
-                  sprite_color_value_lsb_addr = start_addr + ((sprite.tile_id & 0b11111110)       as u16) * 16 + (7 - (y_pos_diff % 8)) as u16;
+                  sprite_color_value_lsb_addr = start_addr + (( sprite.tile_id & 0b11111110)       as u16) * 16 + (7 - (y_pos_diff % 8)) as u16;
                 }
               } else {
                 if ( y_pos_diff < 8 ) { // We're rendering the top half of the sprite
-                  sprite_color_value_lsb_addr = start_addr + ((sprite.tile_id & 0b11111110)       as u16) * 16 + (y_pos_diff % 8) as u16;
+                  sprite_color_value_lsb_addr = start_addr + (( sprite.tile_id & 0b11111110)       as u16) * 16 + (y_pos_diff % 8) as u16;
                 } else {
                   sprite_color_value_lsb_addr = start_addr + (((sprite.tile_id & 0b11111110) + 1) as u16) * 16 + (y_pos_diff % 8) as u16;
                 }
@@ -1958,7 +1956,6 @@ pub mod Ben2C02 {
             self.sprites_on_curr_scanline_pattern_lsb.push(sprite_color_value_lsb);
             self.sprites_on_curr_scanline_pattern_msb.push(sprite_color_value_msb);
           }
-          println!("{}, {}", self.sprites_on_curr_scanline.len(), self.sprites_on_curr_scanline_pattern_lsb.len());
         }
         
       }
@@ -1968,7 +1965,6 @@ pub mod Ben2C02 {
       }
 
       if (self.scan_line == 241 && self.cycle == 1) {
-        println!("{:?}", self.oam_memory);
         self.status_reg.set_vertical_blank(1);
         if (self.controller_reg.get_enable_nmi() ==  1) {
           self.trigger_cpu_nmi = true;
@@ -1997,7 +1993,7 @@ pub mod Ben2C02 {
       if (self.mask_reg.get_render_sprites() != 0) {
         for i in 0..self.sprites_on_curr_scanline.len() {
           let sprite_obj = self.sprites_on_curr_scanline.get(i).unwrap();
-          if sprite_obj.x == 0 { // We could also check for scanline vs x, right?
+          if self.cycle - 1 >= (sprite_obj.x as i16) && self.cycle - 1 < (sprite_obj.x as i16 + 8) {
             let fg_pixel_lo = (self.sprites_on_curr_scanline_pattern_lsb[i] & 0b10000000 != 0) as u8;
             let fg_pixel_hi = (self.sprites_on_curr_scanline_pattern_msb[i] & 0b10000000 != 0) as u8;
             fg_pixel_value = (fg_pixel_hi << 1) | fg_pixel_lo;
@@ -2849,7 +2845,6 @@ pub mod Bus16Bit {
     pub fn write(&mut self, addr: u16, content: u8) -> Result<(), String>{
       if (addr == DMA_ADDR) {
         self.dma_page = content;
-        // println!("Dma page: 0x{:X}", self.dma_page);
         self.dma_curr_addr = (self.dma_page as u16) << 8;
         self.dma_transfer = true;
         self.dma_transfer_start_counter = 2;
