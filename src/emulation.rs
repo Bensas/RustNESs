@@ -2781,7 +2781,7 @@ pub mod Bus16Bit {
     pub dma_curr_addr: u16,
   }
 
-  const DMA_ADDR: u16 = 0x14;
+  const DMA_ADDR: u16 = 0x4014;
   
   // Assumed to be a 16-bit bus
   impl Bus16Bit {
