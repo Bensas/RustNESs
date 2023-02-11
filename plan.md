@@ -405,10 +405,10 @@ PPU work:
 								- (START_ADDR + (tile_id & 0b11111110) * 16 + (7 - (diff % 8)) + 8)
 			- Chcek if they should be flipped horizontally (second msb of attribute byte set to 1) and flip them if necessary.
 			- Add to `sprites_on_curr_scanline_pattern_hi` and `-lo` vectors
-		- [PENDING] `if (self.scan_line == -1 && self.scycle == 1)` (aside from existing reset of vertical_blank)
+		- `if (self.scan_line == -1 && self.scycle == 1)` (aside from existing reset of vertical_blank)
 			- `self.status_reg.est_sprite_overflow(0)`
 			- clear `self.sprites_on_curr_scanline_pattern_lo` and `-hi`
-	- [PENDING] Modify update_shift_registers():
+	- Modify update_shift_registers():
 		- Add `if (self.mask_reg.get_render_sprites() && self.cycles >= 1 && self.cycle < 258)`
 			- for each `sprite_obj` in `self.sprites_on_curr_scanline`:
 				- `if sprite_obj.x > 0 {  sprite_obj.x -= 1 }`

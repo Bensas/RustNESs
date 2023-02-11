@@ -1803,11 +1803,18 @@ pub mod Ben2C02 {
       if (self.scan_line >= -1 && self.scan_line < 240) {
         if (self.scan_line == -1 && self.cycle == 1) {
           self.status_reg.set_vertical_blank(0);
+          self.status_reg.set_sprite_overflow(0);
+          self.status_reg.set_sprite_zero_hit(0);
+          self.sprites_on_curr_scanline_pattern_lsb = vec![];
+          self.sprites_on_curr_scanline_pattern_msb = vec![];
         }
 
         if ((self.cycle >= 2 && self.cycle < 258) || (self.cycle >= 321 && self.cycle < 338)) {
           if (self.mask_reg.get_render_background() != 0) {
             self.update_background_shift_registers();
+          }
+          if (self.mask_reg.get_render_sprites() != 0 && self.cycle >= 1 && self.cycle < 258) {
+            self.update_foreground_shift_registers();
           }
           match ((self.cycle - 1) % 8) {
             0 => {
@@ -1877,7 +1884,7 @@ pub mod Ben2C02 {
           // And add them to the sprites_on_curr_scanline vector
           self.sprites_on_curr_scanline = vec![];
           for i in 0..self.oam_memory.len() {
-            let sprite = self.sprites_on_curr_scanline.get(i).unwrap();
+            let sprite = self.oam_memory.get(i).unwrap();
             let y_pos_diff = self.scan_line - sprite.y as i16;
             let sprite_size = if (self.controller_reg.get_sprite_size() != 0) { 16 } else { 8 };
             if (y_pos_diff >= 0 && y_pos_diff < sprite_size) {
@@ -1924,8 +1931,8 @@ pub mod Ben2C02 {
             }
             sprite_color_value_msb_addr = sprite_color_value_lsb_addr + 8;
 
-            let sprite_color_value_lsb = self.read_from_ppu_bus(sprite_color_value_lsb_addr).unwrap();
-            let sprite_color_value_msb = self.read_from_ppu_bus(sprite_color_value_msb_addr).unwrap();
+            let mut sprite_color_value_lsb = self.read_from_ppu_bus(sprite_color_value_lsb_addr).unwrap();
+            let mut sprite_color_value_msb = self.read_from_ppu_bus(sprite_color_value_msb_addr).unwrap();
 
             if ((sprite.attributes & 0x40) != 0) { // Sprite is flipped horizontally
               sprite_color_value_lsb = sprite_color_value_lsb.reverse_bits();
@@ -1969,50 +1976,50 @@ pub mod Ben2C02 {
         bg_palette_id = bg_palette1 << 1 | bg_palette0;
       }
 
-      // let mut fg_pixel_value: u8 = 0x0;
-      // let mut fg_palette_id: u8 = 0x0;
-      // let mut fg_priority: bool = false;
+      let mut fg_pixel_value: u8 = 0x0;
+      let mut fg_palette_id: u8 = 0x0;
+      let mut fg_priority: bool = false;
 
-      // if (self.mask_reg.get_render_sprites() != 0) {
-      //   for i in 0..self.sprites_on_curr_scanline.len() {
-      //     let sprite_obj = self.sprites_on_curr_scanline.get(i).unwrap();
-      //     if sprite_obj.x == 0 { // We could also check for scanline vs x, right?
-      //       let fg_pixel_lo = (self.sprites_on_curr_scanline_pattern_lsb[i] & 0b10000000 != 0) as u8;
-      //       let fg_pixel_hi = (self.sprites_on_curr_scanline_pattern_msb[i] & 0b10000000 != 0) as u8;
-      //       fg_pixel_value = (fg_pixel_hi << 1) | fg_pixel_lo;
+      if (self.mask_reg.get_render_sprites() != 0) {
+        for i in 0..self.sprites_on_curr_scanline.len() {
+          let sprite_obj = self.sprites_on_curr_scanline.get(i).unwrap();
+          if sprite_obj.x == 0 { // We could also check for scanline vs x, right?
+            let fg_pixel_lo = (self.sprites_on_curr_scanline_pattern_lsb[i] & 0b10000000 != 0) as u8;
+            let fg_pixel_hi = (self.sprites_on_curr_scanline_pattern_msb[i] & 0b10000000 != 0) as u8;
+            fg_pixel_value = (fg_pixel_hi << 1) | fg_pixel_lo;
 
-      //       fg_palette_id = (sprite_obj.attribute & 0b11) + 0x04;
-      //       fg_priority = (sprite_obj.attribute & 0b00100000) == 0;
+            fg_palette_id = (sprite_obj.attributes & 0b11) + 0x04;
+            fg_priority = (sprite_obj.attributes & 0b00100000) == 0;
 
-      //       if (fg_pixel_value != 0) {
-      //         break;
-      //       }
+            if (fg_pixel_value != 0) {
+              break;
+            }
 
-      //     }
-      //   }
-      // }
+          }
+        }
+      }
 
-      // let result_pixel_value: u8 = 0x00;
-      // let result_palette_id: u8 = 0x00;
+      let mut result_pixel_value: u8 = 0x00;
+      let mut result_palette_id: u8 = 0x00;
 
-      // if (bg_pixel_value == 0 && fg_pixel_value == 0) {
-      //   result_pixel_value = 0;
-      //   result_palette_id = 0;
-      // } else if (bg_pixel_value == 0 && fg_pixel_value != 0) {
-      //   result_pixel_value = fg_pixel_value;
-      //   result_palette_id = fg_palette_id;
-      // } else if (bg_pixel_value != 0 && fg_pixel_value == 0) {
-      //   result_pixel_value = bg_pixel_value;
-      //   result_palette_id = bg_palette_id;
-      // } else if (bg_pixel_value != 0 && fg_pixel_value != 0) {
-      //   if (fg_priority) {
-      //     result_pixel_value = fg_pixel_value;
-      //     result_palette_id = fg_palette_id;
-      //   } else {
-      //     result_pixel_value = bg_pixel_value;
-      //     result_palette_id = bg_palette_id;
-      //   }
-      // }
+      if (bg_pixel_value == 0 && fg_pixel_value == 0) {
+        result_pixel_value = 0;
+        result_palette_id = 0;
+      } else if (bg_pixel_value == 0 && fg_pixel_value != 0) {
+        result_pixel_value = fg_pixel_value;
+        result_palette_id = fg_palette_id;
+      } else if (bg_pixel_value != 0 && fg_pixel_value == 0) {
+        result_pixel_value = bg_pixel_value;
+        result_palette_id = bg_palette_id;
+      } else if (bg_pixel_value != 0 && fg_pixel_value != 0) {
+        if (fg_priority) {
+          result_pixel_value = fg_pixel_value;
+          result_palette_id = fg_palette_id;
+        } else {
+          result_pixel_value = bg_pixel_value;
+          result_palette_id = bg_palette_id;
+        }
+      }
 
       if (self.cycle < 256 && self.scan_line < 240 && self.scan_line != -1) {
         self.screen_vis_buffer[self.scan_line as usize][self.cycle as usize] = self.get_color_from_palette(result_pixel_value, result_palette_id);
@@ -2085,6 +2092,16 @@ pub mod Ben2C02 {
 			self.bg_shifter_pattern_hi <<= 1;
 			self.bg_shifter_attrib_lo <<= 1;
 			self.bg_shifter_attrib_hi <<= 1;
+    }
+
+    fn update_foreground_shift_registers(&mut self) {
+      for i in 0..self.sprites_on_curr_scanline_pattern_lsb.len() {
+        let sprite = self.sprites_on_curr_scanline[i];
+        if (self.cycle - 1 >= (sprite.x as i16) && self.cycle - 1 < (sprite.x as i16 + 8)) {
+          self.sprites_on_curr_scanline_pattern_lsb[i] <<= 1;
+          self.sprites_on_curr_scanline_pattern_msb[i] <<= 1;
+        }
+      }
     }
 
     // Refer to https://www.nesdev.org/wiki/PPU_programmer_reference#Pattern_tables
@@ -2245,6 +2262,9 @@ pub mod Ben2C02 {
         },
         3 => {
           return self.oam_memory[index].x;
+        },
+        _  => {
+          return 0;
         }
       }
     }
@@ -2263,6 +2283,9 @@ pub mod Ben2C02 {
         },
         3 => {
           self.oam_memory[index].x = data;
+        },
+        _  => {
+          return;
         }
       }
     }
