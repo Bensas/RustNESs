@@ -1701,8 +1701,8 @@ pub mod Ben2C02 {
 
     // Sprite rendering variables
     sprites_on_curr_scanline: Vec<SpriteObj>,
-    sprites_on_curr_scanline_pattern_lo: Vec<u8>,
-    sprites_on_curr_scanline_pattern_hi: Vec<u8>,
+    sprites_on_curr_scanline_pattern_lsb: Vec<u8>,
+    sprites_on_curr_scanline_pattern_msb: Vec<u8>,
 
     pattern_tables: [[u8; 4096]; 2],
     pattern_tables_mem_bounds: (u16, u16),
@@ -1753,8 +1753,8 @@ pub mod Ben2C02 {
         bg_shifter_attrib_hi: 0,
 
         sprites_on_curr_scanline: vec![],
-        sprites_on_curr_scanline_pattern_lo: vec![],
-        sprites_on_curr_scanline_pattern_hi: vec![],
+        sprites_on_curr_scanline_pattern_lsb: vec![],
+        sprites_on_curr_scanline_pattern_msb: vec![],
 
         pattern_tables: [[0; 4096]; 2],
         pattern_tables_mem_bounds: (0x0000, 0x1FFF),
@@ -1871,6 +1871,71 @@ pub mod Ben2C02 {
           }
         }
 
+        if (self.scan_line >= 0 && self.cycle == 257) { // End of the visible scanline
+
+          // We check which sprites in the OAM memory should be rendered in the current scanline (up to 8)
+          // And add them to the sprites_on_curr_scanline vector
+          self.sprites_on_curr_scanline = vec![];
+          for i in 0..self.oam_memory.len() {
+            let sprite = self.sprites_on_curr_scanline.get(i).unwrap();
+            let y_pos_diff = self.scan_line - sprite.y as i16;
+            let sprite_size = if (self.controller_reg.get_sprite_size() != 0) { 16 } else { 8 };
+            if (y_pos_diff >= 0 && y_pos_diff < sprite_size) {
+              self.sprites_on_curr_scanline.push(sprite.clone());
+              if (self.sprites_on_curr_scanline.len() == 9) {
+                self.status_reg.set_sprite_overflow(1);
+                self.sprites_on_curr_scanline.pop();
+                break;
+              }
+            }
+          }
+        }
+        
+        if (self.cycle == 340) {
+          // For each of the sprites in the render list for this scanline, we calculate the address of its tile row
+          // that corresponds to the current scanline, and then fetch the information for that row, flipping it if necessary.
+          for i in 0..self.sprites_on_curr_scanline.len() {
+            let sprite = self.sprites_on_curr_scanline.get(i).unwrap();
+            let y_pos_diff = self.scan_line - sprite.y as i16;
+            let sprite_color_value_lsb_addr: u16;
+            let sprite_color_value_msb_addr: u16;
+            if (self.controller_reg.get_sprite_size() == 0) { // Sprites are 8x8
+              let start_addr = self.pattern_tables_mem_bounds.0 + if (self.controller_reg.get_pattern_sprite() != 0) { 4096 } else { 0 };
+              if ((sprite.attributes & 0x80) != 0) { // Sprite is flipped vertically
+                sprite_color_value_lsb_addr = start_addr + (sprite.tile_id as u16) * 16 + (7 - y_pos_diff) as u16;
+              } else {
+                sprite_color_value_lsb_addr = start_addr + (sprite.tile_id as u16) * 16 + y_pos_diff as u16;
+              }
+            } else { // Sprites are 8x16
+              let start_addr = self.pattern_tables_mem_bounds.0 + ((sprite.tile_id & 0x01) as u16) * 4096;
+              if ((sprite.attributes & 0x80) != 0) { // Sprite is flipped vertically
+                if ( y_pos_diff < 8 ) { // We're rendering the top half of the rendered sprite (which is the bottom half of the original sprite)
+                  sprite_color_value_lsb_addr = start_addr + (((sprite.tile_id & 0b11111110) + 1) as u16) * 16 + (7 - (y_pos_diff % 8)) as u16;
+                } else {
+                  sprite_color_value_lsb_addr = start_addr + ((sprite.tile_id & 0b11111110)       as u16) * 16 + (7 - (y_pos_diff % 8)) as u16;
+                }
+              } else {
+                if ( y_pos_diff < 8 ) { // We're rendering the top half of the sprite
+                  sprite_color_value_lsb_addr = start_addr + ((sprite.tile_id & 0b11111110)       as u16) * 16 + (y_pos_diff % 8) as u16;
+                } else {
+                  sprite_color_value_lsb_addr = start_addr + (((sprite.tile_id & 0b11111110) + 1) as u16) * 16 + (y_pos_diff % 8) as u16;
+                }
+              }
+            }
+            sprite_color_value_msb_addr = sprite_color_value_lsb_addr + 8;
+
+            let sprite_color_value_lsb = self.read_from_ppu_bus(sprite_color_value_lsb_addr).unwrap();
+            let sprite_color_value_msb = self.read_from_ppu_bus(sprite_color_value_msb_addr).unwrap();
+
+            if ((sprite.attributes & 0x40) != 0) { // Sprite is flipped horizontally
+              sprite_color_value_lsb = sprite_color_value_lsb.reverse_bits();
+              sprite_color_value_msb = sprite_color_value_msb.reverse_bits();
+            }
+            self.sprites_on_curr_scanline_pattern_lsb.push(sprite_color_value_lsb);
+            self.sprites_on_curr_scanline_pattern_msb.push(sprite_color_value_msb);
+          }
+        }
+
         if (self.scan_line == -1 && self.cycle >= 280 && self.cycle < 305) {
           if self.mask_reg.get_render_background() != 0 || self.mask_reg.get_render_sprites() != 0 {
             self.transfer_temp_vram_y();
@@ -1912,8 +1977,8 @@ pub mod Ben2C02 {
       //   for i in 0..self.sprites_on_curr_scanline.len() {
       //     let sprite_obj = self.sprites_on_curr_scanline.get(i).unwrap();
       //     if sprite_obj.x == 0 { // We could also check for scanline vs x, right?
-      //       let fg_pixel_lo = (self.sprites_on_curr_scanline_pattern_lo[i] & 0b10000000 != 0) as u8;
-      //       let fg_pixel_hi = (self.sprites_on_curr_scanline_pattern_hi[i] & 0b10000000 != 0) as u8;
+      //       let fg_pixel_lo = (self.sprites_on_curr_scanline_pattern_lsb[i] & 0b10000000 != 0) as u8;
+      //       let fg_pixel_hi = (self.sprites_on_curr_scanline_pattern_msb[i] & 0b10000000 != 0) as u8;
       //       fg_pixel_value = (fg_pixel_hi << 1) | fg_pixel_lo;
 
       //       fg_palette_id = (sprite_obj.attribute & 0b11) + 0x04;

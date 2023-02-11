@@ -368,15 +368,15 @@ PPU work:
 			- read/write to `oam_addr` variable
 		- OAM Data register:
 			- read/write from/to OAM array (indexed with `self.oam_addrs`)
-	- [PENDING] clock_cycle() function:
-		- [PENDING] `if (self.cycle == 257 && self.scan_line >= 0)` // End of the visible scanline
+	- clock_cycle() function:
+		- `if (self.cycle == 257 && self.scan_line >= 0)` // End of the visible scanline
 			- empty `sprites_on_current_scanline`
 			- Loop through all values in the OAM and for each, do `let diff = scanline - object.y`
 				`if diff >= 0 && diff < (self.control_reg.sprite_size ? 16 : 8)`
 				`sprites_on_current_scanline.push(object)` (Only if we haven't already found 9 sprites)
 			- Check if we have more than 8 sprites(9), then set `self.status_reg.sprite_overflow = 1`
-		- [PENDING] `if (self.cycle == 340)`
-			- fetch `sprite_on_curr_scanline_pattern_hi` and `-lo`from memory location
+		- `if (self.cycle == 340)`
+			- fetch `sprites_on_curr_scanline_pattern_hi` and `-lo`from memory location (for each sprite in `sprites_on_current_scanline`)
 				- mem location is determined by `control.pattern_sprite`, `control.sprite_size`, `object.orientation` and `object.tile_id`:
 					- `diff = self.scan_ line - object.y`
 					- With 8x8:
@@ -388,8 +388,8 @@ PPU work:
 							- (START_ADDR + tile_id * 16 + 7 - diff)
 							- (START_ADDR + tile_id * 16 + 7 - diff + 8)
 					- With 8x16:
+						- `START_ADDR = PATT_MEMORY_START + (object.tile_id & 0x01) * 4096`
 						- non-flipped:
-							- `START_ADDR = PATT_MEMORY_START + (object.tile_id & 0x01) * 4096`
 							- `if diff < 8` (we're drawing the top half of the sprite):
 								- (START_ADDR + (tile_id & 0b11111110) * 16 + (diff % 8))
 								- (START_ADDR + (tile_id & 0b11111110) * 16 + (diff % 8) + 8)
@@ -397,7 +397,6 @@ PPU work:
 								- (START_ADDR + ((tile_id & 0b11111110) + 1) * 16 + (diff % 8))
 								- (START_ADDR + ((tile_id & 0b11111110) + 1) * 16 + (diff % 8) + 8)
 						- flipped vertically:
-							- `START_ADDR = PATT_MEMORY_START + (object.tile_id & 0x01) * 4096`
 							- `if diff < 8` (we're drawing the top half of the sprite, which is actually the bottom half):
 								- (START_ADDR + ((tile_id & 0b11111110) + 1) * 16 + (7 - (diff % 8)))
 								- (START_ADDR + ((tile_id & 0b11111110) + 1) * 16 + (7 - (diff % 8)) + 8)
