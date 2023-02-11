@@ -1657,8 +1657,8 @@ pub mod Ben2C02 {
     }
   }
 
-#[derive(Default, Clone, Copy)]
-  struct SpriteObj {
+#[derive(Default, Clone, Copy, Debug)]
+  pub struct SpriteObj {
     y: u8,
     tile_id: u8,
     attributes: u8,
@@ -1710,7 +1710,7 @@ pub mod Ben2C02 {
     name_tables_mem_bounds: (u16, u16),
     pub palette: [u8; 32],
     palette_mem_bounds: (u16, u16),
-    oam_memory: [SpriteObj; 64],
+    pub oam_memory: [SpriteObj; 64],
 
     
     // These arrays are used for emulator visualization, thus the higher level Color structure
@@ -1801,12 +1801,19 @@ pub mod Ben2C02 {
       // This cycle stravaganza is very concisely explained here: https://www.nesdev.org/w/images/default/4/4f/Ppu.svg
 
       if (self.scan_line >= -1 && self.scan_line < 240) {
+
+        if (self.scan_line == 0 && self.cycle == 0) {
+          // "Odd Frame" cycle skip
+          self.cycle = 1;
+        }
+
         if (self.scan_line == -1 && self.cycle == 1) {
           self.status_reg.set_vertical_blank(0);
           self.status_reg.set_sprite_overflow(0);
           self.status_reg.set_sprite_zero_hit(0);
           self.sprites_on_curr_scanline_pattern_lsb = vec![];
           self.sprites_on_curr_scanline_pattern_msb = vec![];
+          println!("Resetting vectors");
         }
 
         if ((self.cycle >= 2 && self.cycle < 258) || (self.cycle >= 321 && self.cycle < 338)) {
@@ -1878,11 +1885,20 @@ pub mod Ben2C02 {
           }
         }
 
+        if (self.scan_line == -1 && self.cycle >= 280 && self.cycle < 305) {
+          if self.mask_reg.get_render_background() != 0 || self.mask_reg.get_render_sprites() != 0 {
+            self.transfer_temp_vram_y();
+          }
+        }
+
         if (self.scan_line >= 0 && self.cycle == 257) { // End of the visible scanline
 
           // We check which sprites in the OAM memory should be rendered in the current scanline (up to 8)
           // And add them to the sprites_on_curr_scanline vector
           self.sprites_on_curr_scanline = vec![];
+          self.sprites_on_curr_scanline_pattern_lsb = vec![];
+          self.sprites_on_curr_scanline_pattern_msb = vec![];
+
           for i in 0..self.oam_memory.len() {
             let sprite = self.oam_memory.get(i).unwrap();
             let y_pos_diff = self.scan_line - sprite.y as i16;
@@ -1896,6 +1912,7 @@ pub mod Ben2C02 {
               }
             }
           }
+          // println!("{:?}", self.sprites_on_curr_scanline);
         }
         
         if (self.cycle == 340) {
@@ -1941,13 +1958,9 @@ pub mod Ben2C02 {
             self.sprites_on_curr_scanline_pattern_lsb.push(sprite_color_value_lsb);
             self.sprites_on_curr_scanline_pattern_msb.push(sprite_color_value_msb);
           }
+          println!("{}, {}", self.sprites_on_curr_scanline.len(), self.sprites_on_curr_scanline_pattern_lsb.len());
         }
-
-        if (self.scan_line == -1 && self.cycle >= 280 && self.cycle < 305) {
-          if self.mask_reg.get_render_background() != 0 || self.mask_reg.get_render_sprites() != 0 {
-            self.transfer_temp_vram_y();
-          }
-        }
+        
       }
 
       if (self.scan_line == 240) {
@@ -1955,6 +1968,7 @@ pub mod Ben2C02 {
       }
 
       if (self.scan_line == 241 && self.cycle == 1) {
+        println!("{:?}", self.oam_memory);
         self.status_reg.set_vertical_blank(1);
         if (self.controller_reg.get_enable_nmi() ==  1) {
           self.trigger_cpu_nmi = true;
@@ -2269,7 +2283,7 @@ pub mod Ben2C02 {
       }
     }
 
-    fn write_to_oam_memory(&mut self, addr: u8, data: u8) -> () {
+    pub fn write_to_oam_memory(&mut self, addr: u8, data: u8) -> () {
       let index = (addr / 4) as usize;
       match (addr % 4) {
         0 => {
@@ -2835,6 +2849,7 @@ pub mod Bus16Bit {
     pub fn write(&mut self, addr: u16, content: u8) -> Result<(), String>{
       if (addr == DMA_ADDR) {
         self.dma_page = content;
+        // println!("Dma page: 0x{:X}", self.dma_page);
         self.dma_curr_addr = (self.dma_page as u16) << 8;
         self.dma_transfer = true;
         self.dma_transfer_start_counter = 2;
