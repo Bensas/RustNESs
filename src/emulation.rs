@@ -1785,8 +1785,6 @@ pub mod Ben2C02 {
     }
 
     pub fn clock_cycle(&mut self) {
-
-      let mut rng = rand::thread_rng();
         
       self.cycle += 1;
       if self.cycle > 340 {
@@ -1993,7 +1991,7 @@ pub mod Ben2C02 {
       if (self.mask_reg.get_render_sprites() != 0) {
         for i in 0..self.sprites_on_curr_scanline.len() {
           let sprite_obj = self.sprites_on_curr_scanline.get(i).unwrap();
-          if self.cycle - 1 >= (sprite_obj.x as i16) && self.cycle - 1 < (sprite_obj.x as i16 + 8) {
+          if self.cycle >= (sprite_obj.x as i16) && self.cycle < (sprite_obj.x as i16 + 8) {
             let fg_pixel_lo = (self.sprites_on_curr_scanline_pattern_lsb[i] & 0b10000000 != 0) as u8;
             let fg_pixel_hi = (self.sprites_on_curr_scanline_pattern_msb[i] & 0b10000000 != 0) as u8;
             fg_pixel_value = (fg_pixel_hi << 1) | fg_pixel_lo;
