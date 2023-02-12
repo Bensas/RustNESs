@@ -415,6 +415,21 @@ PPU work:
 				- `else`, shift corresponding register in `sprites_on_curr_scanline_pattern_lo` and `-hi`
 				- Maybe we could just check `self.scan_line` vs `sprite_obj.x` instead of decreasing. I don't like the concept of modifying `x`, even if it's a copy of the original sprte.
 
+- [PENDING]Sprite ZXero detection algorithm
+	- PPU
+		- Add `sprite_zero_hit_possible: bool` and `sprite_zero_being_rendered: bool` variables
+		- clock_cycle()
+			- When we add `sprite_objs` to `sprites_in_curr_scanline`, we check if we're adding the first sprite (sprite zero) and set the value of `sprite_zero_hit_possible` accordingly
+			- When we actually render the sprites, we set the `sprite_zero_being_rendered` variable to true if the rendered sprite is sprite zero.
+			- When we check for `bg_pixel_value != 0 && fg_pixel_value != 0`, if the previous two variable are set, we do the following:
+				- if `self.mask.get_render_background() and self.mask_reg.get_render_sprites()`:
+					- `if (self.mask.get_render_background_left() == 0 &&self.mask.get_render_sprites_left() == 0)`
+						- `if (self.cycle >= 9 && self.cycle < 258)`
+							- `self.status.set_sprite_zero_hit(1)`
+					- `else`
+						- `if (self.cycle >= 1 && self.cycle < 258)`
+							- `self.status.set_sprite_zero_hit(1)` 
+
 - Bus (we might have to implement this on the CPU instead):
 	- Add variables:
 		- `dma_page: u8`
