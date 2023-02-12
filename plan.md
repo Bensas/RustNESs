@@ -415,7 +415,7 @@ PPU work:
 				- `else`, shift corresponding register in `sprites_on_curr_scanline_pattern_lo` and `-hi`
 				- Maybe we could just check `self.scan_line` vs `sprite_obj.x` instead of decreasing. I don't like the concept of modifying `x`, even if it's a copy of the original sprte.
 
-- [PENDING]Sprite ZXero detection algorithm
+- Sprite ZXero detection algorithm
 	- PPU
 		- Add `sprite_zero_hit_possible: bool` and `sprite_zero_being_rendered: bool` variables
 		- clock_cycle()

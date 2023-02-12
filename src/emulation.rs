@@ -1704,6 +1704,9 @@ pub mod Ben2C02 {
     sprites_on_curr_scanline_pattern_lsb: Vec<u8>,
     sprites_on_curr_scanline_pattern_msb: Vec<u8>,
 
+    sprite_zero_hit_possible: bool,
+    sprite_zero_being_rendered: bool,
+
     pattern_tables: [[u8; 4096]; 2],
     pattern_tables_mem_bounds: (u16, u16),
     name_tables: [[u8; 1024]; 2],
@@ -1755,6 +1758,9 @@ pub mod Ben2C02 {
         sprites_on_curr_scanline: vec![],
         sprites_on_curr_scanline_pattern_lsb: vec![],
         sprites_on_curr_scanline_pattern_msb: vec![],
+
+        sprite_zero_hit_possible: false,
+        sprite_zero_being_rendered: false,
 
         pattern_tables: [[0; 4096]; 2],
         pattern_tables_mem_bounds: (0x0000, 0x1FFF),
@@ -1896,11 +1902,16 @@ pub mod Ben2C02 {
           self.sprites_on_curr_scanline_pattern_lsb = vec![];
           self.sprites_on_curr_scanline_pattern_msb = vec![];
 
+          self.sprite_zero_hit_possible = false;
+
           for i in 0..self.oam_memory.len() {
             let sprite = self.oam_memory.get(i).unwrap();
             let y_pos_diff = self.scan_line - sprite.y as i16;
             let sprite_size = if (self.controller_reg.get_sprite_size() != 0) { 16 } else { 8 };
             if (y_pos_diff >= 0 && y_pos_diff < sprite_size) {
+              if (i == 0) {
+                self.sprite_zero_hit_possible = true;
+              }
               self.sprites_on_curr_scanline.push(sprite.clone());
               if (self.sprites_on_curr_scanline.len() == 9) {
                 self.status_reg.set_sprite_overflow(1);
@@ -2000,6 +2011,9 @@ pub mod Ben2C02 {
             fg_priority = (sprite_obj.attributes & 0b00100000) == 0;
 
             if (fg_pixel_value != 0) {
+              if (i == 0) {
+                self.sprite_zero_being_rendered = true;
+              }
               break;
             }
 
@@ -2027,6 +2041,25 @@ pub mod Ben2C02 {
           result_pixel_value = bg_pixel_value;
           result_palette_id = bg_palette_id;
         }
+
+        if (self.sprite_zero_being_rendered
+            && self.sprite_zero_hit_possible
+            && self.mask_reg.get_render_background() != 0
+            && self.mask_reg.get_render_sprites() != 0   ) {
+
+              if (self.mask_reg.get_render_background_left() == 0
+                  && self.mask_reg.get_render_sprites_left() == 0) {
+
+                  if (self.cycle >= 9 && self.cycle < 258) {
+                    self.status_reg.set_sprite_zero_hit(1);
+                  }
+
+              } else if (self.cycle >= 1 && self.cycle < 258){
+                self.status_reg.set_sprite_zero_hit(1);
+              }
+
+        }
+          
       }
 
       if (self.cycle < 256 && self.scan_line < 240 && self.scan_line != -1) {
