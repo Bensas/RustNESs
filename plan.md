@@ -449,3 +449,13 @@ PPU work:
 			- Then alternate between reading from the page in the cpu bus and writing (directly)to the PPU's OAM array, incrementing `oam_addr` on every write (and checking for max_val for u8, where we set `dma_transfer` to false) 
 
 # Phase 10: Debugging
+
+- DK works well, which is really cool!
+- SMB has two problems:
+	- (a) The background is rendered black
+	- (b) The game does not start, it gets stuck on the screen.
+- KF 
+
+
+After some investigation, I figured out problem (a) is being caused by incorrect mirroring on PPU palette.
+Problem (b) is still unresolved, but I believe it has to do with sprite zero collision detection.

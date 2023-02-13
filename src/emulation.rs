@@ -1913,7 +1913,7 @@ pub mod Ben2C02 {
                 self.sprite_zero_hit_possible = true;
               }
               self.sprites_on_curr_scanline.push(sprite.clone());
-              if (self.sprites_on_curr_scanline.len() == 9) {
+              if (self.sprites_on_curr_scanline.len() >= 8) {
                 self.status_reg.set_sprite_overflow(1);
                 self.sprites_on_curr_scanline.pop();
                 break;
@@ -2000,23 +2000,27 @@ pub mod Ben2C02 {
       let mut fg_priority: bool = false;
 
       if (self.mask_reg.get_render_sprites() != 0) {
-        for i in 0..self.sprites_on_curr_scanline.len() {
-          let sprite_obj = self.sprites_on_curr_scanline.get(i).unwrap();
-          if self.cycle >= (sprite_obj.x as i16) && self.cycle < (sprite_obj.x as i16 + 8) {
-            let fg_pixel_lo = (self.sprites_on_curr_scanline_pattern_lsb.get(i).unwrap_or(&0) & 0b10000000 != 0) as u8;
-            let fg_pixel_hi = (self.sprites_on_curr_scanline_pattern_msb.get(i).unwrap_or(&0) & 0b10000000 != 0) as u8;
-            fg_pixel_value = (fg_pixel_hi << 1) | fg_pixel_lo;
 
-            fg_palette_id = (sprite_obj.attributes & 0b11) + 0x04;
-            fg_priority = (sprite_obj.attributes & 0b00100000) == 0;
-
-            if (fg_pixel_value != 0) {
-              if (i == 0) {
-                self.sprite_zero_being_rendered = true;
+        if ( (self.mask_reg.get_render_sprites_left() != 0) || (self.cycle >= 9)) {
+          self.sprite_zero_being_rendered = false;
+          for i in 0..self.sprites_on_curr_scanline.len() {
+            let sprite_obj = self.sprites_on_curr_scanline.get(i).unwrap();
+            if self.cycle >= (sprite_obj.x as i16) && self.cycle < (sprite_obj.x as i16 + 8) {
+              let fg_pixel_lo = (self.sprites_on_curr_scanline_pattern_lsb.get(i).unwrap_or(&0) & 0b10000000 != 0) as u8;
+              let fg_pixel_hi = (self.sprites_on_curr_scanline_pattern_msb.get(i).unwrap_or(&0) & 0b10000000 != 0) as u8;
+              fg_pixel_value = (fg_pixel_hi << 1) | fg_pixel_lo;
+  
+              fg_palette_id = (sprite_obj.attributes & 0b11) + 0x04;
+              fg_priority = (sprite_obj.attributes & 0b00100000) == 0;
+  
+              if (fg_pixel_value != 0) {
+                if (i == 0) {
+                  self.sprite_zero_being_rendered = true;
+                }
+                break;
               }
-              break;
+  
             }
-
           }
         }
       }
@@ -2175,6 +2179,36 @@ pub mod Ben2C02 {
       return self.palette_vis_bufer[pixel_color_code as usize];
     }
 
+    fn address_to_palette_index(&self, addr: u16) -> usize {
+      
+      //The entire palette (3F00-31F) is mirrored in the range (3F00-3FFF)
+      let result = (addr & 0xFF) % 32;
+
+      // Additionally, The following address mirrorings occur within the palette itself:
+      // - 3F10 -> 3F00
+      // - 3F14 -> 3F04
+      // - 3F18 -> 3F08
+      // - 3F1C -> 3F0C
+      match result {
+        0x10 => {
+          0x00
+        },
+        0x14 => {
+          0x04
+        },
+        0x18 => {
+          0x08
+        },
+        0x1C => {
+          0x0C
+        }
+        _ => {
+          result as usize
+        }
+      }
+
+    }
+
     // Useful: https://www.nesdev.org/wiki/PPU_memory_map
     fn write_to_ppu_memory(&mut self, addr: u16, data: u8) -> Result<(), String>{
       if self.in_pattern_table_memory_bounds(addr) {
@@ -2212,7 +2246,7 @@ pub mod Ben2C02 {
       }
       else if self.in_palette_memory_bounds(addr) {
         // Address space is $3F00-$3F1F, mirrored in the range $3F00-$3FFF
-        self.palette[((addr & 0x0FF) % 32) as usize] = data;
+        self.palette[self.address_to_palette_index(addr)] = data;
         return Ok(());
       }
       else {
@@ -2254,7 +2288,7 @@ pub mod Ben2C02 {
         }
       }
       else if self.in_palette_memory_bounds(addr) {
-        let data = self.palette[((addr & 0x0FF) % 32) as usize];
+        let data = self.palette[self.address_to_palette_index(addr)];
         return Ok(data);
       }
       else {
@@ -2374,7 +2408,7 @@ pub mod Ben2C02 {
           0x6 => { // PPU Address
             if self.writing_high_byte_of_addr {
               self.temp_vram_reg.flags &= 0xFF;
-              self.temp_vram_reg.flags += (data as u16) << 8; 
+              self.temp_vram_reg.flags += ((data & 0x3F) as u16) << 8; 
             } else {
               self.temp_vram_reg.flags &= 0xFF00;
               self.temp_vram_reg.flags += (data as u16);
@@ -2384,7 +2418,8 @@ pub mod Ben2C02 {
           },
           0x7 => { // PPU data
             self.write_to_ppu_bus(self.vram_reg.flags, data).unwrap();
-            self.vram_reg.flags += if (self.controller_reg.get_increment_mode() != 0) { 32 } else { 1 };
+            let increment_amount = if (self.controller_reg.get_increment_mode() != 0) { 32 } else { 1 };
+            self.vram_reg.flags = (self.vram_reg.flags + increment_amount) & 0x3FFF;
             return Ok(());
           },
           _ => return Err(String::from("Error while mirroring address in PPU write() function!"))
@@ -2416,12 +2451,13 @@ pub mod Ben2C02 {
             return Ok(result);
           },
           0x3 => { // OAM Address
-            return Err(String::from("CPU tried to read from OAM address register, which is undefined."));
-            // return Ok(0);
+            // return Err(String::from("CPU tried to read from OAM address register, which is undefined."));
+            return Ok(self.oam_data_addr);
           },
           0x4 => { // OAM Data
-            return Err(String::from("CPU tried to read from OAM data register, which is undefined."));
-            // return Ok(self.read_from_oam_memory(self.oam_data_addr));
+            return Ok(self.read_from_oam_memory(self.oam_data_addr));
+            // return Err(String::from("CPU tried to read from OAM data register, which is undefined."));
+            
           },
           0x5 => { // Scroll
             panic!("Tried to read from PPU scroll register, which is not readable!");
@@ -2446,7 +2482,9 @@ pub mod Ben2C02 {
               return_value = self.ppu_data_read_buffer;
               self.ppu_data_read_buffer = read_result;
             }
-            self.vram_reg.flags += if (self.controller_reg.get_increment_mode() != 0) { 32 } else { 1 };
+
+            let increment_amount = if (self.controller_reg.get_increment_mode() != 0) { 32 } else { 1 };
+            self.vram_reg.flags = (self.vram_reg.flags + increment_amount) & 0x3FFF; // Are we clearing the fine_y information here? Should we restore it after the increment?
             return Ok(return_value);
 
           },
@@ -2778,7 +2816,8 @@ pub mod Cartridge {
         let mapped_addr_res = self.mapper.mapReadAddressFromPPU(addr);
         match mapped_addr_res {
           Ok(mapped_addr) => {
-            let data = self.CHR_data.get(mapped_addr as usize).unwrap();
+            // println!("{}", mapped_addr);
+            let data = self.CHR_data.get(mapped_addr as usize).unwrap_or(&0);
             return Ok(*data);
           },
           Err(message) => {
