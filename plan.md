@@ -331,7 +331,7 @@ PPU work:
 ### Realization and conclusion:
 - I was compiling for development. Running `cargo run --release` improves frame loading time by ~10 times, which is good enough. I'll still improve cycle accuracy.
 
-# Phase 9: PPU Foreground rendering
+# Phase 9: PPU Foreground rendering [COMPLETE]
 
 ## Some notes
 - Sprites are stored in OAM (Object Attribute Memory) of the PPU (not on the PPU bus)
@@ -441,7 +441,6 @@ PPU work:
 		- `dma_addr = 0x00`
 		- `dma_transfer = true`
 
-
 - RustNESs:
 	- clock_cycle() function:
 		- only do `self.cpu.clock_cycle()` if `dma_transfer` is set to false on the bus
@@ -449,3 +448,4 @@ PPU work:
 			- First wait for 2 clock cycles
 			- Then alternate between reading from the page in the cpu bus and writing (directly)to the PPU's OAM array, incrementing `oam_addr` on every write (and checking for max_val for u8, where we set `dma_transfer` to false) 
 
+# Phase 10: Debugging
