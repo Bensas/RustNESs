@@ -2003,8 +2003,8 @@ pub mod Ben2C02 {
         for i in 0..self.sprites_on_curr_scanline.len() {
           let sprite_obj = self.sprites_on_curr_scanline.get(i).unwrap();
           if self.cycle >= (sprite_obj.x as i16) && self.cycle < (sprite_obj.x as i16 + 8) {
-            let fg_pixel_lo = (self.sprites_on_curr_scanline_pattern_lsb[i] & 0b10000000 != 0) as u8;
-            let fg_pixel_hi = (self.sprites_on_curr_scanline_pattern_msb[i] & 0b10000000 != 0) as u8;
+            let fg_pixel_lo = (self.sprites_on_curr_scanline_pattern_lsb.get(i).unwrap_or(&0) & 0b10000000 != 0) as u8;
+            let fg_pixel_hi = (self.sprites_on_curr_scanline_pattern_msb.get(i).unwrap_or(&0) & 0b10000000 != 0) as u8;
             fg_pixel_value = (fg_pixel_hi << 1) | fg_pixel_lo;
 
             fg_palette_id = (sprite_obj.attributes & 0b11) + 0x04;
