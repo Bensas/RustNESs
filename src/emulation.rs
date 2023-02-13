@@ -1673,6 +1673,7 @@ pub mod Ben2C02 {
     scan_line: i16,
     cycle: i16,
     pub frame_render_complete: bool,
+    odd_frame: bool,
     pub trigger_cpu_nmi: bool,
 
     controller_reg: ControllerRegister,
@@ -1732,6 +1733,7 @@ pub mod Ben2C02 {
         scan_line: 0,
         cycle: 0,
         frame_render_complete: false,
+        odd_frame: false,
         trigger_cpu_nmi: false,
 
         controller_reg: ControllerRegister::new(),
@@ -1791,22 +1793,11 @@ pub mod Ben2C02 {
     }
 
     pub fn clock_cycle(&mut self) {
-        
-      self.cycle += 1;
-      if self.cycle > 340 {
-        self.cycle = 0;
-        self.scan_line += 1;
-        if (self.scan_line > 261) {
-          self.scan_line = -1;
-          self.frame_render_complete = true;
-        }
-      }
 
       // This cycle stravaganza is very concisely explained here: https://www.nesdev.org/w/images/default/4/4f/Ppu.svg
-
       if (self.scan_line >= -1 && self.scan_line < 240) {
 
-        if (self.scan_line == 0 && self.cycle == 0) {
+        if (self.scan_line == 0 && self.cycle == 0 && self.odd_frame && (self.mask_reg.get_render_background() != 0 || self.mask_reg.get_render_sprites() != 0)) {
           // "Odd Frame" cycle skip
           self.cycle = 1;
         }
@@ -1863,9 +1854,9 @@ pub mod Ben2C02 {
             },
             6 => {
               self.bg_next_tile_msb = self.read_from_ppu_bus(
-                ((self.controller_reg.get_pattern_background() as u16) << 12) +
-                      ((self.bg_next_tile_id as u16) << 4) +
-                      (self.vram_reg.get_fine_y() as u16) + 8).unwrap();
+                                            ((self.controller_reg.get_pattern_background() as u16) << 12) +
+                                                  ((self.bg_next_tile_id as u16) << 4) +
+                                                  (self.vram_reg.get_fine_y() as u16) + 8).unwrap();
             },
             7 => {
               if self.mask_reg.get_render_background() != 0 || self.mask_reg.get_render_sprites() != 0 {
@@ -1883,6 +1874,7 @@ pub mod Ben2C02 {
         }
 
         if (self.cycle == 257) {
+          self.load_background_shift_registers_with_next_tile();
           if self.mask_reg.get_render_background() != 0 || self.mask_reg.get_render_sprites() != 0 {
             self.transfer_temp_vram_x();
           }
@@ -1912,13 +1904,13 @@ pub mod Ben2C02 {
               if (i == 0) {
                 self.sprite_zero_hit_possible = true;
               }
-              self.sprites_on_curr_scanline.push(sprite.clone());
-              if (self.sprites_on_curr_scanline.len() >= 8) {
-                self.status_reg.set_sprite_overflow(1);
-                self.sprites_on_curr_scanline.pop();
-                break;
+              if (self.sprites_on_curr_scanline.len() < 8) {
+                self.sprites_on_curr_scanline.push(sprite.clone());
               }
             }
+          }
+          if self.sprites_on_curr_scanline.len() >= 8 {
+            self.status_reg.set_sprite_overflow(1);
           }
         }
         
@@ -2061,13 +2053,22 @@ pub mod Ben2C02 {
               } else if (self.cycle >= 1 && self.cycle < 258){
                 self.status_reg.set_sprite_zero_hit(1);
               }
-
         }
-          
       }
 
       if (self.cycle < 256 && self.scan_line < 240 && self.scan_line != -1) {
         self.screen_vis_buffer[self.scan_line as usize][self.cycle as usize] = self.get_color_from_palette(result_pixel_value, result_palette_id);
+      }
+
+      self.cycle += 1;
+      if self.cycle > 340 {
+        self.cycle = 0;
+        self.scan_line += 1;
+        if (self.scan_line > 260) {
+          self.scan_line = -1;
+          self.frame_render_complete = true;
+          self.odd_frame = !self.odd_frame;
+        }
       }
 
     }
