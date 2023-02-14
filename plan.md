@@ -462,4 +462,4 @@ PPU work:
 - Problem (b) is still unresolved, but I believe it has to do with sprite zero collision detection.
 - Problem (c) seems to be a combination of factors:
 	- Timing issues: there seems to be screen tearing/wobblyness, and I did find (and fix) a timing issue in branch instructions on the CPU. There are probbaly more similar issues. I'll use test roms dedicated to timing debugging for this.
-	- One sprite (I believe it's sprite zero) flickers to the top of the screen periodically, since a couple of commits ago. I'll check which commit caused it.
+	- One sprite (I believe it's sprite zero) flickers to the top of the screen periodically, since commit ed46d9ecaff4c42a82cb4c619f2b2f9635663ef2.
