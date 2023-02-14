@@ -680,7 +680,7 @@ pub mod Ben6502 {
             if (self.status.get_carry() == 0) {
               self.current_instruction_remaining_cycles += 1;
               self.absolute_mem_address = (self.registers.pc as i16 + self.relative_mem_address as i16) as u16;;
-              if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
+              if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF00)){ // If there is a page jump
                 self.current_instruction_remaining_cycles += 1;
               }
               self.registers.pc = self.absolute_mem_address;
@@ -691,7 +691,7 @@ pub mod Ben6502 {
             if (self.status.get_carry() == 1) {
               self.current_instruction_remaining_cycles += 1;
               self.absolute_mem_address = (self.registers.pc as i16 + self.relative_mem_address as i16) as u16;;
-              if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
+              if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF00)){ // If there is a page jump
                 self.current_instruction_remaining_cycles += 1;
               }
               self.registers.pc = self.absolute_mem_address;
@@ -702,7 +702,7 @@ pub mod Ben6502 {
             if (self.status.get_zero() == 1) {
               self.current_instruction_remaining_cycles += 1;
               self.absolute_mem_address = (self.registers.pc as i16 + self.relative_mem_address as i16) as u16;
-              if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
+              if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF00)){ // If there is a page jump
                 self.current_instruction_remaining_cycles += 1;
               }
               self.registers.pc = self.absolute_mem_address;
@@ -721,7 +721,7 @@ pub mod Ben6502 {
             if (self.status.get_negative() == 1) {
               self.current_instruction_remaining_cycles += 1;
               self.absolute_mem_address = (self.registers.pc as i16 + self.relative_mem_address as i16) as u16;
-              if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
+              if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF00)){ // If there is a page jump
                 self.current_instruction_remaining_cycles += 1;
               }
               self.registers.pc = self.absolute_mem_address;
@@ -732,7 +732,7 @@ pub mod Ben6502 {
             if (self.status.get_zero() == 0) {
               self.current_instruction_remaining_cycles += 1;
               self.absolute_mem_address = (self.registers.pc as i16 + self.relative_mem_address as i16) as u16;
-              if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
+              if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF00)){ // If there is a page jump
                 self.current_instruction_remaining_cycles += 1;
               }
               self.registers.pc = self.absolute_mem_address;
@@ -743,7 +743,7 @@ pub mod Ben6502 {
             if (self.status.get_negative() == 0) {
               self.current_instruction_remaining_cycles += 1;
               self.absolute_mem_address = (self.registers.pc as i16 + self.relative_mem_address as i16) as u16;
-              if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF)){ // If there is a page jump
+              if ((self.absolute_mem_address & 0xFF00) != (self.registers.pc & 0xFF00)){ // If there is a page jump
                 self.current_instruction_remaining_cycles += 1;
               }
               self.registers.pc = self.absolute_mem_address;
