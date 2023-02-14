@@ -2394,6 +2394,7 @@ pub mod Ben2C02 {
           },
           0x4 => { // OAM Data
             self.write_to_oam_memory(self.oam_data_addr, data);
+            self.oam_data_addr = self.oam_data_addr.wrapping_add(1);
           },
           0x5 => { // Scroll
             if self.writing_high_byte_of_addr {
@@ -2787,6 +2788,9 @@ pub mod Cartridge {
         let mapped_addr_res = self.mapper.mapWriteAddressFromPPU(addr);
         match mapped_addr_res {
           Ok(mapped_addr) => {
+            while (self.CHR_data.len() <= mapped_addr as usize) {
+              self.CHR_data.push(0);
+            }
             self.CHR_data[mapped_addr as usize] = content;
             return Ok(());
           },
