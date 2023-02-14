@@ -454,8 +454,12 @@ PPU work:
 - SMB has two problems:
 	- (a) The background is rendered black
 	- (b) The game does not start, it gets stuck on the screen.
-- KF 
+- KF works well, but has (c) horrible screen artifacts.
+- IC works well
 
 
-After some investigation, I figured out problem (a) is being caused by incorrect mirroring on PPU palette.
-Problem (b) is still unresolved, but I believe it has to do with sprite zero collision detection.
+- After some investigation, I figured out problem (a) is being caused by incorrect mirroring on PPU palette, which is now solved.
+- Problem (b) is still unresolved, but I believe it has to do with sprite zero collision detection.
+- Problem (c) seems to be a combination of factors:
+	- Timing issues: there seems to be screen tearing/wobblyness, and I did find (and fix) a timing issue in branch instructions on the CPU. There are probbaly more similar issues. I'll use test roms dedicated to timing debugging for this.
+	- One sprite (I believe it's sprite zero) flickers to the top of the screen periodically, since a couple of commits ago. I'll check which commit caused it.
