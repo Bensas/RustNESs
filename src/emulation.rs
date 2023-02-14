@@ -2435,13 +2435,13 @@ pub mod Ben2C02 {
       if self.in_memory_bounds(addr) {
         let mirrored_addr = addr & 0x0007;
         match mirrored_addr {
-          0x0 => { // Control (Not readable)
-            panic!("Tried to read from PPU control register, which is not readable!");
-            // return Ok(0);
+          0x0 => { // Control
+            return Ok(self.controller_reg.flags);
+            // panic!("Tried to read from PPU control register, which is not readable!");
           },
-          0x1 => { // Mask (Not readable)
-            panic!("Tried to read from PPU mask register, which is not readable!");
-            // return Ok(0);
+          0x1 => { // Mask
+            return Ok(self.mask_reg.flags);
+            // panic!("Tried to read from PPU mask register, which is not readable!");
           },
           0x2 => { // Status
             // We use the 3 most significant bits of the status register
@@ -2452,8 +2452,8 @@ pub mod Ben2C02 {
             return Ok(result);
           },
           0x3 => { // OAM Address
-            // return Err(String::from("CPU tried to read from OAM address register, which is undefined."));
             return Ok(self.oam_data_addr);
+            // return Err(String::from("CPU tried to read from OAM address register, which is undefined."));
           },
           0x4 => { // OAM Data
             return Ok(self.read_from_oam_memory(self.oam_data_addr));
@@ -2898,6 +2898,7 @@ pub mod Bus16Bit {
           return device.borrow_mut().read(addr);
         }
       }
+      return Ok(0);
       return Err(String::from(format!("Error reading from memory bus (No device found in given address: 0x{:x}).", addr)));
     }
   
