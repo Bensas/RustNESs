@@ -191,7 +191,7 @@ impl Application for RustNESs {
             self.clock_cycle();
           }
 
-          println!("Frame render took {}ms", start_render_time.elapsed().as_millis());
+          // println!("Frame render took {}ms", start_render_time.elapsed().as_millis());
           self.cpu.bus.PPU.borrow_mut().frame_render_complete = false;
           self.cpu.bus.PPU.borrow_mut().update_pattern_tables_vis_buffer(self.ppu_pattern_tables_buffer_visualizer.pattern_table_vis_palette_id);
 
