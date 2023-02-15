@@ -450,6 +450,7 @@ PPU work:
 
 # Phase 10: Debugging
 
+**Debugging log 1**
 - DK works well, which is really cool!
 - SMB has two problems:
 	- (a) The background is rendered black
@@ -457,9 +458,14 @@ PPU work:
 - KF works well, but has (c) horrible screen artifacts.
 - IC works well
 
-
+**Debugging log 2**
 - After some investigation, I figured out problem (a) is being caused by incorrect mirroring on PPU palette, which is now solved.
-- Problem (b) is still unresolved, but I believe it has to do with sprite zero collision detection.
+- Problem (b) is still unresolved, but I believe it has to do with sprite zero collision detection. 
 - Problem (c) seems to be a combination of factors:
 	- Timing issues: there seems to be screen tearing/wobblyness, and I did find (and fix) a timing issue in branch instructions on the CPU. There are probbaly more similar issues. I'll use test roms dedicated to timing debugging for this.
 	- One sprite (I believe it's sprite zero) flickers to the top of the screen periodically, since commit ed46d9ecaff4c42a82cb4c619f2b2f9635663ef2.
+
+**Debugging log 3**
+- Problems (b) and (c) turned out to be caused by the same issue. DMA transfers begin on every third cycle of the system clock. This can happen when cycle % 2 == 0 or cycle % 2 == 1, but we were making the assumption that it always happened when cycle % 2 == 0. By making sure to start the transfer only once cycle % 2 == 0, we managed to fix DMA transfers, and with it, both these problems.
+- We can now run Kung-Fu without issues, yay!
+- We can run SMB, start the game, kill some goombas, but both rendering and collision detection seem to have horizontal alignment issues. This corresponds to the results of alignment tests on blargg's sprite_hit_tests.
