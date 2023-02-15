@@ -2859,8 +2859,8 @@ pub mod Bus16Bit {
     pub controller: Rc<RefCell<Controller>>,
 
     // Direct Memory Access variables
-    pub dma_transfer: bool,
-    pub dma_transfer_start_counter: u8,
+    pub dma_transfer_active: bool,
+    pub waiting_for_cycle_alignment: bool,
     pub dma_page: u8,
     pub dma_curr_data: u8,
     pub dma_curr_addr: u16,
@@ -2888,8 +2888,8 @@ pub mod Bus16Bit {
         devices,
         PPU,
         controller,
-        dma_transfer: false,
-        dma_transfer_start_counter: 2,
+        dma_transfer_active: false,
+        waiting_for_cycle_alignment: true,
         dma_page: 0x0,
         dma_curr_data: 0x0,
         dma_curr_addr: 0x0,
@@ -2922,9 +2922,10 @@ pub mod Bus16Bit {
       if (addr == DMA_ADDR) {
         self.dma_page = content;
         self.dma_curr_addr = (self.dma_page as u16) << 8;
-        self.dma_transfer = true;
-        self.dma_transfer_start_counter = 2;
+        self.dma_transfer_active = true;
+        self.waiting_for_cycle_alignment = true;
         self.dma_curr_data = 0;
+        return Ok(());
       }
       for device in self.devices.iter_mut() {
         if device.borrow().in_memory_bounds(addr) {
