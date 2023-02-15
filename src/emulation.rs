@@ -1846,7 +1846,7 @@ pub mod Ben2C02 {
             4 => {
               self.bg_next_tile_lsb = self.read_from_ppu_bus(
                                             ((self.controller_reg.get_pattern_background() as u16) << 12) +
-                                                  ((self.bg_next_tile_id as u16) << 4) +
+                                                  ((self.bg_next_tile_id as u16) * 16) +
                                                   (self.vram_reg.get_fine_y() as u16)).unwrap();
             },
             5 => {
@@ -1855,7 +1855,7 @@ pub mod Ben2C02 {
             6 => {
               self.bg_next_tile_msb = self.read_from_ppu_bus(
                                             ((self.controller_reg.get_pattern_background() as u16) << 12) +
-                                                  ((self.bg_next_tile_id as u16) << 4) +
+                                                  ((self.bg_next_tile_id as u16) * 16) +
                                                   (self.vram_reg.get_fine_y() as u16) + 8).unwrap();
             },
             7 => {
@@ -2646,6 +2646,7 @@ pub mod Cartridge {
     }
   }
 
+  // Reference: https://www.nesdev.org/wiki/INES
   pub fn create_cartridge_from_ines_file(file_path: &str) -> Result<Cartridge, String> {
     let file_contents = fs::read(file_path).unwrap();
     if !verify_nes_header(&file_contents){
@@ -2672,7 +2673,7 @@ pub mod Cartridge {
       tv_system_2: get_tv_system_2_from_flags10(flags10),
     };
 
-    let mirroring_mode = if (header.mapper1 & 0x01) != 0 { MirroringMode::Vertical } else { MirroringMode::Horizontal };
+    let mirroring_mode = if (flags6 & 0x01) != 0 { MirroringMode::Vertical } else { MirroringMode::Horizontal };
 
     let mapper = create_mapper_from_number((header.mapper2 << 4) & header.mapper1, prg_chunks, chr_chunks).unwrap();
 

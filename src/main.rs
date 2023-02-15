@@ -30,7 +30,7 @@ fn main() {
   RustNESs::run(Settings::default());
 }
 
-const EMULATOR_FRAMES_PER_SECONDD: u64 = 30;
+const EMULATOR_FRAMES_PER_SECONDD: u64 = 60;
 const SCREEN_HEIGHT: u16 = 500;
 const PATTERN_TABLE_VIS_HEIGHT: u16 = 300;
 const PALETTE_VIS_HEIGHT: u16 = 30;
@@ -106,7 +106,7 @@ impl Application for RustNESs {
   type Flags = ();
 
   fn new(flags: Self::Flags) -> (RustNESs, iced::Command<EmulatorMessage>) {
-    let rom_file_path = "src/test_roms/kf.nes";
+    let rom_file_path = "src/test_roms/smb.nes";
 
 
     let mut cpu_bus = Bus16Bit::new(rom_file_path);

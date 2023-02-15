@@ -469,3 +469,21 @@ PPU work:
 - Problems (b) and (c) turned out to be caused by the same issue. DMA transfers begin on every third cycle of the system clock. This can happen when cycle % 2 == 0 or cycle % 2 == 1, but we were making the assumption that it always happened when cycle % 2 == 0. By making sure to start the transfer only once cycle % 2 == 0, we managed to fix DMA transfers, and with it, both these problems.
 - We can now run Kung-Fu without issues, yay!
 - We can run SMB, start the game, kill some goombas, but both rendering and collision detection seem to have horizontal alignment issues. This corresponds to the results of alignment tests on blargg's sprite_hit_tests.
+
+**Debugging log 4**
+- SMB alignment issue: The right half of the screen is being rendered correctly, but the left half is showing what should come after the right half of the screen.
+
+Screen should show:
+|  1H  .  2H  |
+Content shown:
+|  3H  |  2H  |
+
+We are using vertical mirroring, so in nametable terms ("NT1/2" is the second half of Nametable 1, etc):
+
+Screen should show:
+| NT1/1. NT1/2|| NT2/1. NT2/2|
+Content shown:
+| NT2/1. NT1/2|| NT2/1. ???|
+
+**Debugging log 5**
+- The SMB issue was caused by a pretty stupid mistake. Instead of using Verical mirrorin, we were using Horizontal mirroring, because we were parsing the mirroring mode incorrectly when loading `.nes` files. A small change corrected that, and now all of the games we have tested so far work!.
