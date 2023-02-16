@@ -448,7 +448,7 @@ PPU work:
 			- First wait for 2 clock cycles
 			- Then alternate between reading from the page in the cpu bus and writing (directly)to the PPU's OAM array, incrementing `oam_addr` on every write (and checking for max_val for u8, where we set `dma_transfer` to false) 
 
-# Phase 10: Debugging
+# Phase 10: Debugging [COMPLETE]
 
 **Debugging log 1**
 - DK works well, which is really cool!
@@ -486,4 +486,4 @@ Content shown:
 | NT2/1. NT1/2|| NT2/1. ???|
 
 **Debugging log 5**
-- The SMB issue was caused by a pretty stupid mistake. Instead of using Verical mirrorin, we were using Horizontal mirroring, because we were parsing the mirroring mode incorrectly when loading `.nes` files. A small change corrected that, and now all of the games we have tested so far work!.
+- The SMB issue was caused by a pretty stupid mistake. Instead of using Verical mirroring, we were using Horizontal mirroring, because we were parsing the mirroring mode incorrectly when loading `.nes` files. A small change corrected that, and now all of the games we have tested so far work!.
