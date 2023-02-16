@@ -1,6 +1,9 @@
 # RustNESs
 NES emulator written in rust.
 
+<!-- ![Super Mario Bros.]( "Super Mario Bros.") -->
+<img src="https://i.ibb.co/XCmK8Dw/Bildschirmfoto-2023-02-15-um-21-08-00.png" width=50% height=50%>
+
 ## Instructions
 
 You must have `rustup` installed. If not, you can [follow this tutorial](https://doc.rust-lang.org/book/ch01-01-installation.html#installation) to get it.
