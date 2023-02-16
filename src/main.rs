@@ -1,11 +1,27 @@
 #![allow(unused_parens)]
-mod emulation;
+mod ben2C02;
+mod ben6502;
+mod bus;
+mod cartridge;
+mod controller;
+mod device;
+mod graphics;
+mod mapper;
+mod ram;
+mod utils;
+
 use std::cell::RefCell;
 use std::env;
 use std::rc::Rc;
 use std::sync::{Mutex, Arc, MutexGuard};
 
-use emulation::{ Bus16Bit::Bus16Bit, Ben6502::Ben6502, hex_utils, Ben2C02::Ben2C02, Ram::Ram2K, Cartridge::Cartridge, Device::Device};
+use bus::Bus16Bit;
+use ben6502::Ben6502;
+use utils::hex_utils;
+use ben2C02::Ben2C02;
+use ram::Ram2K;
+use cartridge::Cartridge;
+use device::Device;
 
 
 use iced::widget::{button, column, row, text};
@@ -112,8 +128,8 @@ impl Application for RustNESs {
 
     let mut cpu_bus = Bus16Bit::new(rom_file_path);
 
-    // cpu_bus.write(emulation::PROGRAM_START_POINTER_ADDR, 0x00).unwrap();
-    // cpu_bus.write(emulation::PROGRAM_START_POINTER_ADDR + 1, 0x80).unwrap();
+    // cpu_bus.write(PROGRAM_START_POINTER_ADDR, 0x00).unwrap();
+    // cpu_bus.write(PROGRAM_START_POINTER_ADDR + 1, 0x80).unwrap();
     
     let cpu: Ben6502 = Ben6502::new(cpu_bus);
     return (Self { 
@@ -123,18 +139,18 @@ impl Application for RustNESs {
               cycles_per_second: EMULATOR_FRAMES_PER_SECONDD,
               input_handler: NESInputHandler::new(),
               ppu_screen_buffer_visualizer: PPUScreenBufferVisualizer {
-                screen_vis_buffer: [[emulation::graphics::Color::new(0, 0, 0); 256]; 240],
+                screen_vis_buffer: [[graphics::Color::new(0, 0, 0); 256]; 240],
                 canvas_cache: Cache::default(),
                 pixel_height: f32::from(SCREEN_HEIGHT) / 240.0
               },
               ppu_pattern_tables_buffer_visualizer: PPUPatternTableBufferVisualizer {
-                pattern_tables_vis_buffer: [[[emulation::graphics::Color::new(0, 0, 0); 128]; 128]; 2],
+                pattern_tables_vis_buffer: [[[graphics::Color::new(0, 0, 0); 128]; 128]; 2],
                 pattern_table_vis_palette_id: 0,
                 canvas_cache: Cache::default(),
                 pixel_height: f32::from(PATTERN_TABLE_VIS_HEIGHT) / 128.0
               },
               ppu_palette_visualizer: PPUPaletteVisualizer {
-                palette: [emulation::graphics::Color::new(0, 0, 0); 32],
+                palette: [graphics::Color::new(0, 0, 0); 32],
                 canvas_cache: Cache::default(),
                 pixel_height: f32::from(PALETTE_VIS_WIDTH) / 32.0
               },
@@ -143,8 +159,8 @@ impl Application for RustNESs {
                 ram_end_addr: 0x100,
                 pc_start_addr:0x8000,
                 pc_end_addr: 0x8010,
-                stack_start_addr: 0x100 + emulation::Ben6502::SP_RESET_ADDR as u16 - 100,
-                stack_end_addr: 0x100 + emulation::Ben6502::SP_RESET_ADDR as u16,
+                stack_start_addr: 0x100 + ben6502::SP_RESET_ADDR as u16 - 100,
+                stack_end_addr: 0x100 + ben6502::SP_RESET_ADDR as u16,
 
                 ram_content_str: String::from(""),
                 program_content_str: String::from(""),
@@ -335,16 +351,16 @@ impl MemoryVisualizer {
       self.pc_end_addr = self.pc_start_addr;
     }
 
-    self.stack_start_addr = emulation::Ben6502::STACK_START_ADDR + cpu.registers.sp as u16 - 40;
-    self.stack_end_addr = emulation::Ben6502::STACK_START_ADDR + cpu.registers.sp as u16 + 4;
+    self.stack_start_addr = ben6502::STACK_START_ADDR + cpu.registers.sp as u16 - 40;
+    self.stack_end_addr = ben6502::STACK_START_ADDR + cpu.registers.sp as u16 + 4;
 
 
-    if ((self.pc_start_addr >= emulation::Ben2C02::PPU_MEMORY_BOUNDS.0 && self.pc_start_addr <= emulation::Ben2C02::PPU_MEMORY_BOUNDS.1) ||
-        (self.pc_end_addr >= emulation::Ben2C02::PPU_MEMORY_BOUNDS.0 && self.pc_end_addr <= emulation::Ben2C02::PPU_MEMORY_BOUNDS.1) ||
-        (self.stack_start_addr >= emulation::Ben2C02::PPU_MEMORY_BOUNDS.0 && self.stack_start_addr <= emulation::Ben2C02::PPU_MEMORY_BOUNDS.1) ||
-        (self.stack_end_addr >= emulation::Ben2C02::PPU_MEMORY_BOUNDS.0 && self.stack_end_addr <= emulation::Ben2C02::PPU_MEMORY_BOUNDS.1) ||
-        (self.ram_start_addr >= emulation::Ben2C02::PPU_MEMORY_BOUNDS.0 && self.ram_start_addr <= emulation::Ben2C02::PPU_MEMORY_BOUNDS.1) ||
-        (self.ram_end_addr >= emulation::Ben2C02::PPU_MEMORY_BOUNDS.0 && self.ram_end_addr <= emulation::Ben2C02::PPU_MEMORY_BOUNDS.1)) {
+    if ((self.pc_start_addr >= ben2C02::PPU_MEMORY_BOUNDS.0 && self.pc_start_addr <= ben2C02::PPU_MEMORY_BOUNDS.1) ||
+        (self.pc_end_addr >= ben2C02::PPU_MEMORY_BOUNDS.0 && self.pc_end_addr <= ben2C02::PPU_MEMORY_BOUNDS.1) ||
+        (self.stack_start_addr >= ben2C02::PPU_MEMORY_BOUNDS.0 && self.stack_start_addr <= ben2C02::PPU_MEMORY_BOUNDS.1) ||
+        (self.stack_end_addr >= ben2C02::PPU_MEMORY_BOUNDS.0 && self.stack_end_addr <= ben2C02::PPU_MEMORY_BOUNDS.1) ||
+        (self.ram_start_addr >= ben2C02::PPU_MEMORY_BOUNDS.0 && self.ram_start_addr <= ben2C02::PPU_MEMORY_BOUNDS.1) ||
+        (self.ram_end_addr >= ben2C02::PPU_MEMORY_BOUNDS.0 && self.ram_end_addr <= ben2C02::PPU_MEMORY_BOUNDS.1)) {
           panic!("Memory visualizer is reading from PPU memory bounds, which might alter the state of the emulation!");
         }
 
@@ -362,7 +378,7 @@ impl MemoryVisualizer {
       text(&self.ram_content_str).size(20),
       text(format!("RAM contents  at PC (Addr 0x{:x} - 0x{:x}):", self.pc_start_addr, self.pc_end_addr-1)),
       text(&self.program_content_str).size(20),
-      text(emulation::Ben6502::disassemble(&self.program_content)).size(18).style(Color::from([0.0, 0.0, 1.0])),
+      text(ben6502::disassemble(&self.program_content)).size(18).style(Color::from([0.0, 0.0, 1.0])),
       text(format!("Stack contents (Addr 0x{:x} - 0x{:x}):", self.stack_start_addr, self.stack_end_addr-1)),
       text(&self.stack_content_str).size(20)
     ]
@@ -373,7 +389,7 @@ impl MemoryVisualizer {
 
 
 struct PPUScreenBufferVisualizer {
-  screen_vis_buffer: [[emulation::graphics::Color; 256]; 240],
+  screen_vis_buffer: [[graphics::Color; 256]; 240],
   canvas_cache: Cache,
   pixel_height: f32
 }
@@ -430,7 +446,7 @@ impl canvas::Program<EmulatorMessage> for PPUScreenBufferVisualizer {
 }
 
 struct PPUPaletteVisualizer {
-  palette: [emulation::graphics::Color; 32],
+  palette: [graphics::Color; 32],
   canvas_cache: Cache,
   pixel_height: f32
 }
@@ -485,7 +501,7 @@ impl canvas::Program<EmulatorMessage> for PPUPaletteVisualizer {
 
 
 struct PPUPatternTableBufferVisualizer {
-  pattern_tables_vis_buffer: [[[emulation::graphics::Color; 128]; 128]; 2],
+  pattern_tables_vis_buffer: [[[graphics::Color; 128]; 128]; 2],
   canvas_cache: Cache,
   pixel_height: f32,
   pattern_table_vis_palette_id: u8
