@@ -13,7 +13,7 @@ cd RustNESs
 
 - And then run
 ```
-cargo run --release
+cargo run --release <path-to-ROM-file>
 ```
 to open the emulator.
 
@@ -35,7 +35,7 @@ to open the emulator.
 - APU implementation to have sound.
 - Support for more mappers (currently only supports Mapper000).
 - UI toggle to display system information or just the screen.
-- UI widget to upload ROM file.
+- UI widget to upload ROM file instead of passing it as CL argument.
 
 ## Resources utilized:
 - https://www.youtube.com/@javidx9
