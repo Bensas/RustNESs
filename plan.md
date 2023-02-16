@@ -487,3 +487,5 @@ Content shown:
 
 **Debugging log 5**
 - The SMB issue was caused by a pretty stupid mistake. Instead of using Verical mirroring, we were using Horizontal mirroring, because we were parsing the mirroring mode incorrectly when loading `.nes` files. A small change corrected that, and now all of the games we have tested so far work!.
+
+# Phase 11: APU
