@@ -37,7 +37,7 @@ to open the emulator.
 ## Roadmap of upcoming features:
 - APU implementation to have sound.
 - Support for more mappers (currently only supports Mapper000).
-- UI toggle to display system information or just the screen.
+- UI toggle to display system information vs just the screen.
 - UI widget to upload ROM file instead of passing it as CL argument.
 
 ## Resources utilized:
